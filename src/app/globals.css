@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* WanderSplit base tokens (Tailwind v4 @theme inline) */
+/* WanderSplit base tokens */
 :root {
   --background: 248 250 252;  /* slate-50 */
   --foreground: 15 23 42;     /* slate-900 */
@@ -23,12 +23,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: 2 6 23;     /* slate-950 */
-    --foreground: 226 232 240;/* slate-200 */
-    --muted: 148 163 184;     /* slate-400 */
-    --border: 30 41 59;       /* slate-800 */
-    --card: 15 23 42;         /* slate-900 */
-    --primary: 99 102 241;    /* indigo-500 */
+    --background: 2 6 23;      /* slate-950 */
+    --foreground: 226 232 240; /* slate-200 */
+    --muted: 148 163 184;      /* slate-400 */
+    --border: 30 41 59;        /* slate-800 */
+    --card: 15 23 42;          /* slate-900 */
+    --primary: 99 102 241;     /* indigo-500 */
   }
 }
 

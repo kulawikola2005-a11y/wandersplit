@@ -1,64 +1,43 @@
 @import "tailwindcss";
 
+/* WanderSplit base tokens (Tailwind v4 @theme inline) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: 248 250 252;  /* slate-50 */
+  --foreground: 15 23 42;     /* slate-900 */
+  --muted: 100 116 139;       /* slate-500 */
+  --border: 226 232 240;      /* slate-200 */
+  --card: 255 255 255;        /* white */
+  --primary: 79 70 229;       /* indigo-600 */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: rgb(var(--background));
+  --color-foreground: rgb(var(--foreground));
+  --color-muted: rgb(var(--muted));
+  --color-border: rgb(var(--border));
+  --color-card: rgb(var(--card));
+  --color-primary: rgb(var(--primary));
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 2 6 23;     /* slate-950 */
+    --foreground: 226 232 240;/* slate-200 */
+    --muted: 148 163 184;     /* slate-400 */
+    --border: 30 41 59;       /* slate-800 */
+    --card: 15 23 42;         /* slate-900 */
+    --primary: 99 102 241;    /* indigo-500 */
   }
 }
 
+html, body { height: 100%; }
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
-
-/* ===== WanderSplit PRO base ===== */
-:root{
-  --bg: 248 250 252;      /* slate-50 */
-  --card: 255 255 255;
-  --text: 15 23 42;       /* slate-900 */
-  --muted: 100 116 139;   /* slate-500 */
-  --border: 226 232 240;  /* slate-200 */
-  --primary: 79 70 229;   /* indigo-600 */
-}
-
-html, body { height: 100%; }
-
-body{
-  background: rgb(var(--bg));
-  color: rgb(var(--text));
-}
-
-/* ===== WanderSplit PRO base ===== */
-:root{
-  --bg: 248 250 252;      /* slate-50 */
-  --card: 255 255 255;
-  --text: 15 23 42;       /* slate-900 */
-  --muted: 100 116 139;   /* slate-500 */
-  --border: 226 232 240;  /* slate-200 */
-  --primary: 79 70 229;   /* indigo-600 */
-}
-
-html, body { height: 100%; }
-
-body{
-  background: rgb(var(--bg));
-  color: rgb(var(--text));
-}
-
-/* ===== WanderSplit PRO base ===== */
-html, body { height: 100%; }
-body { background: #f8fafc; }

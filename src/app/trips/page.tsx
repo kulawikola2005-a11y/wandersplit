@@ -5,6 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { getTripCoverDeterministic } from "@/lib/mobile/covers";
 
+import PageHeader from "@/components/app/PageHeader";
+import Section from "@/components/app/Section";
+import EmptyState from "@/components/app/EmptyState";
+import SkeletonBlock from "@/components/app/SkeletonBlock";
+
 type Trip = {
   id: string;
   title: string;
@@ -172,151 +177,169 @@ export default function TripsPage() {
 
   return (
     <div className="px-4 pb-10 pt-6">
-      {/* header */}
-      <div className="rounded-[28px] bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-rose-500 p-5 text-white shadow-[0_18px_60px_rgba(0,0,0,0.25)]">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-2xl font-black tracking-tight">WanderSplit</div>
-            <div className="mt-1 text-sm text-white/85">
-              {checking ? "Sprawdzam sesję…" : userEmail ? <>Zalogowana: <span className="font-semibold">{userEmail}</span></> : null}
-            </div>
-          </div>
-
+      <PageHeader
+        eyebrow="WanderSplit"
+        title="Twoje podróże"
+        description={
+          checking
+            ? "Sprawdzam sesję…"
+            : userEmail
+            ? `Zalogowana: ${userEmail}`
+            : ""
+        }
+        right={
           <button
             onClick={logout}
             disabled={busy}
             className={cx(
-              "rounded-2xl bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-white/20",
+              "rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50",
               busy && "opacity-60"
             )}
           >
             Wyloguj
           </button>
-        </div>
+        }
+      />
 
-        <div className="mt-4 flex gap-3">
-          <button
-            onClick={() => createTrip(true)}
-            disabled={busy || checking}
-            className={cx(
-              "flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-slate-900 shadow-sm hover:bg-white/95",
-              (busy || checking) && "opacity-60"
-            )}
-          >
-            Load demo trip
-          </button>
-          <div className="hidden sm:block rounded-2xl bg-white/10 px-4 py-3 text-sm text-white/85">
-            Plan • Budżet • Mapa • Pogoda • Share
-          </div>
-        </div>
-      </div>
-
-      {/* create */}
-      <div className="mt-5 rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
-        <div className="text-sm font-extrabold">Create new trip</div>
-
-        <div className="mt-3 grid gap-3">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
-            placeholder="Nazwa tripa"
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
-            />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
-            />
-          </div>
-
-          <div className="grid grid-cols-[1fr_auto] gap-3">
-            <input
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
-              placeholder="EUR"
-            />
+      <div className="space-y-6">
+        <Section
+          title="Utwórz nowy trip"
+          subtitle="Podaj nazwę, daty i walutę bazową. Możesz też wczytać demo."
+          right={
             <button
-              onClick={() => createTrip(false)}
-              disabled={!canSubmit || checking}
+              onClick={() => createTrip(true)}
+              disabled={busy || checking}
               className={cx(
-                "rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-emerald-700",
-                (!canSubmit || checking) && "opacity-50"
+                "rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800",
+                (busy || checking) && "opacity-60"
               )}
             >
-              Create
+              Wczytaj demo
             </button>
-          </div>
+          }
+        >
+          <div className="grid gap-3">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+              placeholder="Nazwa tripa"
+            />
 
-          {msg ? <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">{msg}</div> : null}
-        </div>
-      </div>
-
-      {/* list */}
-      <div className="mt-6">
-        <div className="text-sm font-extrabold text-slate-900">Twoje tripy</div>
-
-        <div className="mt-3 space-y-4">
-          {trips.length === 0 ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
-              Brak tripów. Stwórz pierwszy albo kliknij demo.
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+              />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+              />
             </div>
+
+            <div className="grid grid-cols-[1fr_auto] gap-3">
+              <input
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+                placeholder="EUR"
+              />
+              <button
+                onClick={() => createTrip(false)}
+                disabled={!canSubmit || checking}
+                className={cx(
+                  "rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-indigo-700",
+                  (!canSubmit || checking) && "opacity-50"
+                )}
+              >
+                Utwórz
+              </button>
+            </div>
+
+            {msg ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                {msg}
+              </div>
+            ) : null}
+          </div>
+        </Section>
+
+        <Section title="Twoje tripy" subtitle="Otwieraj, udostępniaj i eksportuj PDF.">
+          {checking ? (
+            <div className="space-y-3">
+              <SkeletonBlock className="h-28 w-full" />
+              <SkeletonBlock className="h-28 w-full" />
+            </div>
+          ) : trips.length === 0 ? (
+            <EmptyState
+              title="Brak tripów"
+              description="Stwórz pierwszy trip albo wczytaj demo, żeby zobaczyć jak to działa."
+              action={
+                <button
+                  onClick={() => createTrip(true)}
+                  disabled={busy}
+                  className={cx(
+                    "rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800",
+                    busy && "opacity-60"
+                  )}
+                >
+                  Wczytaj demo
+                </button>
+              }
+            />
           ) : (
-            trips.map((t) => {
-              const cover = getTripCoverDeterministic(t.id);
-              return (
-                <div key={t.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                  <div className="h-28 bg-cover bg-center" style={{ backgroundImage: `url('${cover}')` }} />
-                  <div className="p-4">
-                    <div className="text-base font-black">{t.title}</div>
-                    <div className="mt-1 text-sm text-slate-600">
-                      {t.start_date} → {t.end_date} · {t.base_currency}
-                    </div>
+            <div className="space-y-4">
+              {trips.map((t) => {
+                const cover = getTripCoverDeterministic(t.id);
+                return (
+                  <div key={t.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="h-28 bg-cover bg-center" style={{ backgroundImage: `url('${cover}')` }} />
+                    <div className="p-4">
+                      <div className="text-base font-black">{t.title}</div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        {t.start_date} → {t.end_date} · {t.base_currency}
+                      </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Link
-                        href={`/trips/${t.id}`}
-                        className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        Otwórz
-                      </Link>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Link
+                          href={`/trips/${t.id}`}
+                          className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                        >
+                          Otwórz
+                        </Link>
 
-                      <Link
-                        href={`/trips/${t.id}/public`}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
-                      >
-                        Public link
-                      </Link>
+                        <Link
+                          href={`/trips/${t.id}/public`}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                        >
+                          Public link
+                        </Link>
 
-                      <Link
-                        href={`/trips/${t.id}/invite`}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
-                      >
-                        Invite
-                      </Link>
+                        <Link
+                          href={`/trips/${t.id}/invite`}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                        >
+                          Invite
+                        </Link>
 
-                      <Link
-                        href={`/trips/${t.id}/export`}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold"
-                      >
-                        Export PDF
-                      </Link>
+                        <Link
+                          href={`/trips/${t.id}/export`}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                        >
+                          Export PDF
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
-        </div>
+        </Section>
       </div>
     </div>
   );
