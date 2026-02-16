@@ -24,3 +24,41 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== WanderSplit PRO base ===== */
+:root{
+  --bg: 248 250 252;      /* slate-50 */
+  --card: 255 255 255;
+  --text: 15 23 42;       /* slate-900 */
+  --muted: 100 116 139;   /* slate-500 */
+  --border: 226 232 240;  /* slate-200 */
+  --primary: 79 70 229;   /* indigo-600 */
+}
+
+html, body { height: 100%; }
+
+body{
+  background: rgb(var(--bg));
+  color: rgb(var(--text));
+}
+
+/* ===== WanderSplit PRO base ===== */
+:root{
+  --bg: 248 250 252;      /* slate-50 */
+  --card: 255 255 255;
+  --text: 15 23 42;       /* slate-900 */
+  --muted: 100 116 139;   /* slate-500 */
+  --border: 226 232 240;  /* slate-200 */
+  --primary: 79 70 229;   /* indigo-600 */
+}
+
+html, body { height: 100%; }
+
+body{
+  background: rgb(var(--bg));
+  color: rgb(var(--text));
+}
+
+/* ===== WanderSplit PRO base ===== */
+html, body { height: 100%; }
+body { background: #f8fafc; }
