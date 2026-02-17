@@ -225,15 +225,13 @@ function PlanInner({ tripId }: { tripId: string }) {
       </div>
 
       {/* FAB */}
-      <div className="fixed inset-x-0 bottom-[92px] z-40 flex justify-center pointer-events-none">
-        <button
-          onClick={() => setOpen(true)}
-          className="pointer-events-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-900 text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.98]"
-          aria-label="Dodaj punkt"
-        >
-          <Plus size={22} />
-        </button>
-      </div>
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-[92px] right-5 z-40 grid h-14 w-14 place-items-center rounded-2xl bg-slate-900 text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.98]"
+        aria-label="Dodaj punkt"
+      >
+        <Plus size={22} />
+      </button>
 
       {/* Bottom sheet */}
       {open ? (

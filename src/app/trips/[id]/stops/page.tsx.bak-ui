@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowUp, ArrowDown, Plus, Trash2, X } from "lucide-react";
+import { ArrowUp, ArrowDown, Plus, Trash2 } from "lucide-react";
 import TripHeroPro from "@/components/trip/TripHeroPro";
-import { ProButton, ProCard, ProInput, cx } from "@/components/ui/pro";
+import { ProButton, ProCard, ProInput } from "@/components/ui/pro";
 
 /* eslint-disable react-hooks/set-state-in-effect */
 
@@ -38,32 +38,6 @@ export default function StopsPage() {
   const tripId = useMemo(() => String(params?.id || ""), [params]);
   if (!tripId) return null;
   return <Inner key={tripId} tripId={tripId} />;
-}
-
-function IconBtn({
-  title,
-  onClick,
-  disabled,
-  children,
-}: {
-  title: string;
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cx(
-        "rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 transition hover:bg-slate-50",
-        disabled && "opacity-40 cursor-not-allowed hover:bg-white"
-      )}
-      title={title}
-    >
-      {children}
-    </button>
-  );
 }
 
 function Inner({ tripId }: { tripId: string }) {
@@ -118,19 +92,17 @@ function Inner({ tripId }: { tripId: string }) {
   }
 
   return (
-    <div className="pb-28">
+    <div className="pb-2">
       <TripHeroPro tripId={tripId} section="Stops" />
 
       <div className="px-4 space-y-4">
         <ProCard className="p-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-extrabold text-slate-900">Trasa</div>
-              <div className="mt-1 text-xs text-slate-500">
-                {stops.length} {stops.length === 1 ? "punkt" : stops.length < 5 ? "punkty" : "punktów"} · ustaw kolejność i dodaj kraje (opcjonalnie)
-              </div>
+              <div className="mt-1 text-xs text-slate-500">{stops.length} punktów</div>
             </div>
-            <ProButton onClick={() => setOpen(true)}>Dodaj</ProButton>
+            <ProButton variant="ghost" onClick={() => setOpen(true)}>Dodaj</ProButton>
           </div>
         </ProCard>
 
@@ -139,52 +111,56 @@ function Inner({ tripId }: { tripId: string }) {
             <ProCard className="p-6 text-center">
               <div className="text-base font-extrabold text-slate-900">Brak stopów</div>
               <div className="mt-2 text-sm text-slate-600">Dodaj np. Rome, Florence.</div>
-              <div className="mt-4">
-                <ProButton onClick={() => setOpen(true)}>Dodaj stop</ProButton>
-              </div>
+              <div className="mt-4"><ProButton onClick={() => setOpen(true)}>Dodaj stop</ProButton></div>
             </ProCard>
           ) : (
-            stops.map((s, i) => {
-              const canUp = i > 0;
-              const canDown = i < stops.length - 1;
-              return (
-                <ProCard key={s.id} className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-slate-500">#{i + 1}</div>
-                      <div className="text-sm font-extrabold text-slate-900 break-words">{s.name}</div>
-                      <div className="mt-1 text-xs text-slate-500">{s.countryCode ? s.countryCode : "—"}</div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <IconBtn title="W górę" onClick={() => move(s.id, -1)} disabled={!canUp}>
-                        <ArrowUp size={18} />
-                      </IconBtn>
-                      <IconBtn title="W dół" onClick={() => move(s.id, 1)} disabled={!canDown}>
-                        <ArrowDown size={18} />
-                      </IconBtn>
-                      <IconBtn title="Usuń" onClick={() => remove(s.id)}>
-                        <Trash2 size={18} />
-                      </IconBtn>
-                    </div>
+            stops.map((s, i) => (
+              <ProCard key={s.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-slate-500">#{i + 1}</div>
+                    <div className="text-sm font-extrabold text-slate-900 break-words">{s.name}</div>
+                    <div className="mt-1 text-xs text-slate-500">{s.countryCode ? s.countryCode : "—"}</div>
                   </div>
-                </ProCard>
-              );
-            })
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => move(s.id, -1)}
+                      className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
+                      title="W górę"
+                    >
+                      <ArrowUp size={18} />
+                    </button>
+                    <button
+                      onClick={() => move(s.id, 1)}
+                      className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
+                      title="W dół"
+                    >
+                      <ArrowDown size={18} />
+                    </button>
+                    <button
+                      onClick={() => remove(s.id)}
+                      className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
+                      title="Usuń"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              </ProCard>
+            ))
           )}
         </div>
       </div>
 
       {/* FAB */}
-      <div className="fixed inset-x-0 bottom-[92px] z-40 flex justify-center pointer-events-none">
-        <button
-          onClick={() => setOpen(true)}
-          className="pointer-events-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-900 text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.98]"
-          aria-label="Dodaj"
-        >
-          <Plus size={22} />
-        </button>
-      </div>
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-[92px] right-5 z-40 grid h-14 w-14 place-items-center rounded-2xl bg-slate-900 text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.98]"
+        aria-label="Dodaj"
+      >
+        <Plus size={22} />
+      </button>
 
       {/* Sheet */}
       {open ? (
@@ -193,13 +169,7 @@ function Inner({ tripId }: { tripId: string }) {
             <div className="mt-[24vh] rounded-t-[28px] bg-white p-5 shadow-[0_-20px_80px_rgba(0,0,0,0.25)]">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-extrabold text-slate-900">Dodaj stop</div>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
-                  title="Zamknij"
-                >
-                  <X size={18} />
-                </button>
+                <ProButton variant="ghost" onClick={() => setOpen(false)}>Zamknij</ProButton>
               </div>
 
               <div className="mt-3 space-y-2">
