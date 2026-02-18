@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { Trash2 } from "lucide-react";
+import TripHeroPro from "@/components/trip/TripHeroPro";
+import { ProButton, ProCard, ProInput, cx } from "@/components/ui/pro";
 
 type Expense = {
   id: string;
   title: string;
-  amount: number; // w jednostkach (np. 12.34)
+  amount: number; // np. 12.34
   paidBy: string;
   splitAmong: string[];
   createdAt: string;
@@ -32,11 +35,64 @@ function fmt(amount: number, currency: string) {
   }
 }
 
-// rozdział w centach równo + reszta po 1 cent
+// równo + reszta po 1 cent
 function splitCents(total: number, n: number) {
   const base = Math.floor(total / n);
   const rem = total % n;
   return Array.from({ length: n }, (_, i) => base + (i < rem ? 1 : 0));
+}
+
+function Chip({
+  active,
+  onClick,
+  children,
+  title,
+}: {
+  active?: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={cx(
+        "rounded-2xl px-3 py-2 text-xs font-semibold border transition",
+        active
+          ? "bg-slate-900 text-white border-slate-900"
+          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Select({
+  value,
+  onChange,
+  children,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={cx(
+        "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10",
+        className
+      )}
+    >
+      {children}
+    </select>
+  );
 }
 
 export default function BudgetPage() {
@@ -124,7 +180,6 @@ export default function BudgetPage() {
   }
 
   function removePerson(name: string) {
-    // blokujemy usunięcie jeśli osoba jest użyta w wydatkach
     const used = expenses.some((e) => e.paidBy === name || e.splitAmong.includes(name));
     if (used) {
       setMsg("Nie można usunąć osoby użytej w wydatkach. Najpierw usuń/zmień te wydatki.");
@@ -138,9 +193,7 @@ export default function BudgetPage() {
   }
 
   function toggleSplit(name: string) {
-    setSplitAmong((prev) =>
-      prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
-    );
+    setSplitAmong((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
   }
 
   function addExpense() {
@@ -202,12 +255,11 @@ export default function BudgetPage() {
 
     const debtors = Object.entries(balancesCents)
       .filter(([, c]) => c < 0)
-      .map(([name, c]) => ({ name, c: -c })) // ile jest winny (na plus)
+      .map(([name, c]) => ({ name, c: -c }))
       .sort((a, b) => b.c - a.c);
 
     const out: { from: string; to: string; cents: number }[] = [];
-    let i = 0,
-      j = 0;
+    let i = 0, j = 0;
 
     while (i < debtors.length && j < creditors.length) {
       const d = debtors[i];
@@ -226,197 +278,188 @@ export default function BudgetPage() {
     return out;
   }, [balancesCents]);
 
-  return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Budżet</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Trip ID: <span className="font-mono">{tripId || "-"}</span>
-          </p>
-        </div>
-        <a className="rounded-xl border px-4 py-2 text-sm" href={`/trips/${tripId}`}>
-          ← Wróć do tripa
-        </a>
-      </div>
+  const totalSpent = useMemo(() => expenses.reduce((acc, e) => acc + e.amount, 0), [expenses]);
 
-      {/* SETTINGS */}
-      <div className="mt-6 rounded-2xl border p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="text-xs text-gray-500">Waluta</label>
-            <input
-              className="mt-1 w-28 rounded-xl border p-2"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              placeholder="EUR"
-            />
+  return (
+    <div className="pb-28">
+      <TripHeroPro tripId={tripId} section="Budżet" />
+
+      <div className="px-4 space-y-4">
+        {/* SETTINGS */}
+        <ProCard className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-extrabold text-slate-900">Uczestnicy i waluta</div>
+              <div className="mt-1 text-xs text-slate-500">
+                {people.length} {people.length === 1 ? "osoba" : people.length < 5 ? "osoby" : "osób"} · łącznie wydano:{" "}
+                <span className="font-semibold text-slate-700">{fmt(totalSpent, currency)}</span>
+              </div>
+            </div>
+            <a
+              href={`/trips/${tripId}`}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
+            >
+              ← Wróć do tripa
+            </a>
           </div>
 
-          <div className="flex-1">
-            <label className="text-xs text-gray-500">Dodaj osobę</label>
-            <div className="mt-1 flex gap-2">
-              <input
-                className="w-full rounded-xl border p-2"
+          <div className="mt-4 grid gap-3">
+            <div className="grid grid-cols-[120px_1fr_auto] gap-3">
+              <ProInput
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                placeholder="EUR"
+              />
+              <ProInput
                 value={newPerson}
                 onChange={(e) => setNewPerson(e.target.value)}
-                placeholder="np. Bartek"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") addPerson();
-                }}
+                placeholder="Dodaj osobę (np. Bartek)"
               />
-              <button onClick={addPerson} className="rounded-xl bg-black px-4 py-2 text-white">
-                Dodaj
-              </button>
+              <ProButton onClick={addPerson}>Dodaj</ProButton>
             </div>
-          </div>
-        </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {people.map((p) => (
-            <div key={p} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm">
-              <span>{p}</span>
-              <button onClick={() => removePerson(p)} className="rounded-lg border px-2 py-1 text-xs">
-                usuń
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {msg ? <p className="mt-3 text-sm text-gray-700">{msg}</p> : null}
-      </div>
-
-      {/* ADD EXPENSE */}
-      <div className="mt-6 rounded-2xl border p-4">
-        <h2 className="text-lg font-medium">Dodaj wydatek</h2>
-
-        <div className="mt-3 grid gap-3">
-          <input
-            className="w-full rounded-xl border p-3"
-            placeholder="np. Kolacja"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <input
-              className="w-full rounded-xl border p-3"
-              placeholder="kwota (np. 45.50)"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-
-            <select
-              className="w-full rounded-xl border p-3"
-              value={paidBy}
-              onChange={(e) => setPaidBy(e.target.value)}
-            >
+            <div className="flex flex-wrap gap-2">
               {people.map((p) => (
-                <option key={p} value={p}>
-                  Zapłacił(a): {p}
-                </option>
-              ))}
-            </select>
-
-            <button onClick={addExpense} className="rounded-xl bg-black px-4 py-3 text-white">
-              Dodaj wydatek
-            </button>
-          </div>
-
-          <div className="rounded-xl border p-3">
-            <div className="text-sm font-medium">Dzielone między:</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {people.map((p) => {
-                const on = splitAmong.includes(p);
-                return (
+                <div
+                  key={p}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                >
+                  {p}
                   <button
-                    key={p}
-                    onClick={() => toggleSplit(p)}
-                    className={`rounded-xl border px-3 py-2 text-sm ${on ? "bg-black text-white" : ""}`}
                     type="button"
+                    onClick={() => removePerson(p)}
+                    className="rounded-xl border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    title="Usuń"
                   >
-                    {p}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Tip: w MVP robimy podział równy między zaznaczone osoby.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* EXPENSES */}
-      <div className="mt-6">
-        <h2 className="text-lg font-medium">Wydatki</h2>
-
-        <div className="mt-3 space-y-2">
-          {expenses.length === 0 ? (
-            <p className="text-sm text-gray-600">Brak wydatków. Dodaj pierwszy 🙂</p>
-          ) : (
-            expenses.map((e) => (
-              <div key={e.id} className="rounded-2xl border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-medium">{e.title}</div>
-                    <div className="mt-1 text-sm text-gray-600">
-                      {fmt(e.amount, currency)} · zapłacił(a): <b>{e.paidBy}</b>
-                    </div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      dzielone: {e.splitAmong.join(", ")} · {new Date(e.createdAt).toLocaleString()}
-                    </div>
-                  </div>
-                  <button onClick={() => removeExpense(e.id)} className="rounded-xl border px-3 py-2 text-sm">
-                    Usuń
+                    usuń
                   </button>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* BALANCE */}
-      <div className="mt-6 rounded-2xl border p-4">
-        <h2 className="text-lg font-medium">Balance</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Dodatni = osoba powinna dostać. Ujemny = osoba jest winna.
-        </p>
-
-        <div className="mt-3 space-y-1">
-          {people.map((p) => {
-            const v = fromCents(balancesCents[p] || 0);
-            return (
-              <div key={p} className="flex items-center justify-between rounded-xl border px-3 py-2">
-                <span className="text-sm">{p}</span>
-                <span className="text-sm font-medium">{fmt(v, currency)}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* WHO OWES WHOM */}
-      <div className="mt-6 rounded-2xl border p-4">
-        <h2 className="text-lg font-medium">Kto komu ile</h2>
-
-        {transfers.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-600">Brak rozliczeń (albo brak wydatków).</p>
-        ) : (
-          <div className="mt-3 space-y-2">
-            {transfers.map((t, idx) => (
-              <div key={idx} className="rounded-xl border px-3 py-2 text-sm">
-                <b>{t.from}</b> → <b>{t.to}</b>: {fmt(fromCents(t.cents), currency)}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        )}
-      </div>
+        </ProCard>
 
-      <p className="mt-6 text-xs text-gray-500">
-        MVP działa lokalnie (localStorage). Później podepniemy to pod Supabase.
-      </p>
+        {/* ADD EXPENSE */}
+        <ProCard className="p-4">
+          <div className="text-sm font-extrabold text-slate-900">Dodaj wydatek</div>
+          <div className="mt-1 text-xs text-slate-500">Wpisz nazwę i kwotę, wybierz płacącego i osoby dzielące koszt.</div>
+
+          <div className="mt-4 grid gap-3">
+            <ProInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. Kolacja" />
+
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-3">
+              <ProInput
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Kwota (np. 12.34)"
+              />
+
+              <Select value={paidBy} onChange={setPaidBy}>
+                <option value="" disabled>
+                  Zapłacił(a)…
+                </option>
+                {people.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </Select>
+
+              <ProButton onClick={addExpense} className="w-full">
+                Dodaj wydatek
+              </ProButton>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-4">
+              <div className="text-xs font-semibold text-slate-700">Dzielone między</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {people.map((p) => (
+                  <Chip key={p} active={splitAmong.includes(p)} onClick={() => toggleSplit(p)}>
+                    {p}
+                  </Chip>
+                ))}
+              </div>
+              <div className="mt-3 text-xs text-slate-500">
+                Tip: w MVP dzielimy koszt równo między zaznaczone osoby (z dokładnością do centów).
+              </div>
+            </div>
+
+            {msg ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                {msg}
+              </div>
+            ) : null}
+          </div>
+        </ProCard>
+
+        {/* LIST + SETTLEMENT */}
+        <ProCard className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-extrabold text-slate-900">Wydatki</div>
+              <div className="mt-1 text-xs text-slate-500">{expenses.length} pozycji</div>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {expenses.length === 0 ? (
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center">
+                <div className="text-base font-extrabold text-slate-900">Brak wydatków</div>
+                <div className="mt-2 text-sm text-slate-600">Dodaj pierwszy wydatek powyżej.</div>
+              </div>
+            ) : (
+              expenses.map((e) => (
+                <div key={e.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-extrabold text-slate-900 break-words">{e.title}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {fmt(e.amount, currency)} · zapłacił(a): <span className="font-semibold">{e.paidBy}</span> · dzielone:{" "}
+                        {e.splitAmong.join(", ")}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {new Date(e.createdAt).toLocaleString("pl-PL")}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => removeExpense(e.id)}
+                      className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
+                      title="Usuń"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 pt-4">
+            <div className="text-sm font-extrabold text-slate-900">Rozliczenie</div>
+            <div className="mt-1 text-xs text-slate-500">Kto komu powinien oddać, żeby wyrównać saldo.</div>
+
+            <div className="mt-4 space-y-2">
+              {transfers.length === 0 ? (
+                <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  Brak przelewów — wygląda na to, że wszystko jest już równo.
+                </div>
+              ) : (
+                transfers.map((t, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-3xl border border-slate-200 bg-white p-3 text-sm text-slate-800"
+                  >
+                    <span className="font-semibold">{t.from}</span> →{" "}
+                    <span className="font-semibold">{t.to}</span>{" "}
+                    <span className="text-slate-500">({fmt(fromCents(t.cents), currency)})</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </ProCard>
+      </div>
     </div>
   );
 }
