@@ -41,3 +41,96 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+
+/* Leaflet + modale (żeby mapa nie wychodziła nad sheet / dialog) */
+.leaflet-container {
+  z-index: 0;
+}
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10;
+}
+
+/* Leaflet pod modalami/sheetami */
+.leaflet-container { z-index: 0; }
+.leaflet-pane, .leaflet-top, .leaflet-bottom { z-index: 10; }
+
+/* === WanderSplit Theme: Vacation Pirates === */
+:root {
+  --ws-bg: #f3f0ff;           /* lavender mist */
+  --ws-bg2: #efe6ff;          /* warm lavender */
+  --ws-card: rgba(255,255,255,0.72);
+  --ws-card-solid: #fff7e8;
+  --ws-ink: #0b1b2b;          /* navy ink */
+  --ws-muted: rgba(11,27,43,0.62);
+  --ws-line: rgba(11,27,43,0.14);
+  --ws-gold: #d6a84f;
+  --ws-gold2: #b7852d;
+  --ws-coral: #ff6b4a;
+  --ws-sea: #37b7a6;
+  --ws-shadow: 0 14px 34px rgba(35, 24, 8, 0.18);
+}
+
+/* attach theme by adding class 'ws-pirates' on body */
+.ws-pirates {
+  color: var(--ws-ink);
+  background:
+    radial-gradient(1200px 600px at 20% 0%, rgba(255, 214, 138, 0.20), transparent 55%),
+    radial-gradient(900px 520px at 110% 20%, rgba(55, 183, 166, 0.12), transparent 55%),
+    radial-gradient(900px 520px at 10% 120%, rgba(255, 107, 74, 0.10), transparent 55%),
+    linear-gradient(180deg, var(--ws-bg), var(--ws-bg2));
+}
+
+/* subtle “map texture” overlay */
+.ws-pirates::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(0,0,0,0.05) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 60%, rgba(0,0,0,0.04) 0 1px, transparent 2px),
+    radial-gradient(circle at 40% 80%, rgba(0,0,0,0.035) 0 1px, transparent 2px);
+  background-size: 260px 260px, 320px 320px, 380px 380px;
+  mix-blend-mode: multiply;
+}
+
+/* helpers */
+.ws-card {
+  background: var(--ws-card);
+  border: 1px solid var(--ws-line);
+  border-radius: 20px;
+  box-shadow: var(--ws-shadow);
+  backdrop-filter: blur(10px);
+}
+
+.ws-btn {
+  border-radius: 18px;
+  border: 1px solid rgba(11,27,43,0.14);
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.70));
+  color: var(--ws-ink);
+}
+
+.ws-btn-accent {
+  border-radius: 18px;
+  border: 1px solid rgba(183, 133, 45, 0.35);
+  background: linear-gradient(180deg, rgba(214,168,79,0.95), rgba(183,133,45,0.90));
+  color: rgba(11,27,43,0.95);
+  box-shadow: 0 10px 24px rgba(183,133,45,0.26);
+}
+
+.ws-input {
+  border-radius: 16px;
+  border: 1px solid rgba(11,27,43,0.14);
+  background: rgba(255,255,255,0.82);
+}
+
+
+/* pirates polish */
+.ws-pirates a { color: var(--ws-ink); }
+.ws-pirates a:hover { color: rgba(11,27,43,0.85); }
+
+.ws-pirates h1, .ws-pirates h2, .ws-pirates h3 { letter-spacing: -0.02em; }
+

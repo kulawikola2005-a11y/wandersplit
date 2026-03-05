@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle2, Circle, Clock3, Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, Pencil } from "lucide-react";
 import TripHeroPro from "@/components/trip/TripHeroPro";
 import { ProButton, ProCard, ProInput, cx } from "@/components/ui/pro";
 
@@ -48,25 +48,63 @@ function nextStatus(s: Status): Status {
   return "todo";
 }
 
-function statusUi(s: Status) {
-  if (s === "todo") return { label: "Do zrobienia", chip: "bg-slate-100 text-slate-700", Icon: Circle };
-  if (s === "doing") return { label: "W trakcie", chip: "bg-amber-100 text-amber-800", Icon: Clock3 };
-  return { label: "Zrobione", chip: "bg-emerald-100 text-emerald-800", Icon: CheckCircle2 };
+function statusProgress(s: Status) {
+  if (s === "todo") return 0;
+  if (s === "doing") return 50;
+  return 100;
 }
 
-function tagUi(t: Tag) {
-  switch (t) {
-    case "transport":
-      return { label: "Transport" };
-    case "stay":
-      return { label: "Nocleg" };
-    case "tickets":
-      return { label: "Bilety" };
-    case "todo":
-      return { label: "To-do" };
-    default:
-      return { label: "Inne" };
-  }
+function statusLabel(s: Status) {
+  if (s === "todo") return "Do zrobienia";
+  if (s === "doing") return "W trakcie";
+  return "Zrobione";
+}
+
+function ProgressRing({
+  value,
+  size = 24,
+  stroke = 3,
+}: {
+  value: number;
+  size?: number;
+  stroke?: number;
+}) {
+  const clamped = Math.max(0, Math.min(100, value));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const dash = (clamped / 100) * c;
+
+  const color =
+    clamped >= 100 ? "#10b981" : clamped >= 50 ? "#f59e0b" : "#94a3b8";
+
+  return (
+    <div className="relative inline-grid place-items-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="#e2e8f0"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c - dash}`}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <span className="absolute text-[9px] font-bold text-slate-700">
+        {clamped === 0 ? "" : clamped === 50 ? "½" : "✓"}
+      </span>
+    </div>
+  );
 }
 
 export default function PlanPage() {
@@ -83,6 +121,8 @@ function PlanInner({ tripId }: { tripId: string }) {
   const [filter, setFilter] = useState<"all" | Status>("all");
 
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   const [text, setText] = useState("");
   const [tag, setTag] = useState<Tag>("todo");
 
@@ -97,17 +137,40 @@ function PlanInner({ tripId }: { tripId: string }) {
     safeWrite(key, next);
   }
 
-  function add() {
-    const t = text.trim();
-    if (!t) return;
-    const next: Item[] = [
-      { id: uid(), text: t, status: "todo", tag, createdAt: new Date().toISOString() },
-      ...items,
-    ];
-    persist(next);
+  function resetForm() {
+    setEditingId(null);
     setText("");
     setTag("todo");
+  }
+
+  function openAdd() {
+    resetForm();
+    setOpen(true);
+  }
+
+  function openEdit(it: Item) {
+    setEditingId(it.id);
+    setText(it.text);
+    setTag(it.tag);
+    setOpen(true);
+  }
+
+  function addOrSave() {
+    const t = text.trim();
+    if (!t) return;
+
+    if (editingId) {
+      persist(items.map((it) => (it.id === editingId ? { ...it, text: t, tag } : it)));
+    } else {
+      const next: Item[] = [
+        { id: uid(), text: t, status: "todo", tag, createdAt: new Date().toISOString() },
+        ...items,
+      ];
+      persist(next);
+    }
+
     setOpen(false);
+    resetForm();
   }
 
   function cycle(id: string) {
@@ -139,17 +202,24 @@ function PlanInner({ tripId }: { tripId: string }) {
       <TripHeroPro tripId={tripId} section="Plan" />
 
       <div className="px-4 space-y-4">
+        {/* Header sekcji */}
         <ProCard className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-extrabold text-slate-900">Plan</div>
-              <div className="mt-1 text-xs text-slate-500">
-                {counts.total} · {counts.todo} do zrobienia · {counts.doing} w trakcie · {counts.done} zrobione
+              <div className="text-xl font-black tracking-tight text-slate-900">Plan</div>
+              <div className="mt-1 text-sm leading-5 text-slate-600">
+                Zadania, bilety, noclegi i rzeczy do ogarnięcia przed wyjazdem.
+              </div>
+              <div className="mt-3 text-xs text-slate-500">
+                {counts.total} razem · {counts.todo} do zrobienia · {counts.doing} w trakcie · {counts.done} zrobione
               </div>
             </div>
-            <ProButton variant="ghost" onClick={clearAll}>
-              Wyczyść
-            </ProButton>
+            <div className="flex items-center gap-2">
+              <ProButton onClick={openAdd}>Dodaj punkt</ProButton>
+              <ProButton variant="ghost" onClick={clearAll}>
+                Wyczyść
+              </ProButton>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -171,53 +241,76 @@ function PlanInner({ tripId }: { tripId: string }) {
                 )}
                 onClick={() => setFilter(s)}
               >
-                {statusUi(s).label}
+                {statusLabel(s)}
               </button>
             ))}
           </div>
         </ProCard>
 
-        <div className="space-y-3">
+        {/* Lista */}
+        <div className="space-y-2">
           {filtered.length === 0 ? (
             <ProCard className="p-6 text-center">
               <div className="text-base font-extrabold text-slate-900">Brak punktów</div>
               <div className="mt-2 text-sm text-slate-600">
-                Dodaj pierwszy punkt i klikaj status, żeby go zmieniać.
+                Dodaj pierwszy punkt i klikaj kółko, żeby zmieniać postęp.
               </div>
               <div className="mt-4">
-                <ProButton onClick={() => setOpen(true)}>Dodaj punkt</ProButton>
+                <ProButton onClick={openAdd}>Dodaj punkt</ProButton>
               </div>
             </ProCard>
           ) : (
             filtered.map((it) => {
-              const st = statusUi(it.status);
-              const tg = tagUi(it.tag);
+              const p = statusProgress(it.status);
               return (
-                <ProCard key={it.id} className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-extrabold text-slate-900 break-words">{it.text}</div>
-                      <div className="mt-1 text-xs text-slate-500">
-                        {tg.label} · {new Date(it.createdAt).toLocaleString("pl-PL")}
-                      </div>
-                      <button
-                        onClick={() => cycle(it.id)}
-                        className={cx("mt-3 inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold", st.chip)}
-                        title="Kliknij, żeby zmienić status"
+                <div
+                  key={it.id}
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* klikany progress */}
+                    <button
+                      onClick={() => cycle(it.id)}
+                      className="mt-0.5 shrink-0 rounded-xl p-1 hover:bg-slate-50"
+                      title={`Zmień status (${statusLabel(it.status)})`}
+                      aria-label={`Zmień status (${statusLabel(it.status)})`}
+                    >
+                      <ProgressRing value={p} />
+                    </button>
+
+                    {/* treść */}
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className={cx(
+                          "text-base font-extrabold leading-6 text-slate-900 break-words",
+                          it.status === "done" && "text-slate-500 line-through"
+                        )}
                       >
-                        <st.Icon size={16} /> {st.label}
-                      </button>
+                        {it.text}
+                      </div>
                     </div>
 
-                    <button
-                      onClick={() => remove(it.id)}
-                      className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
-                      title="Usuń"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {/* akcje */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEdit(it)}
+                        className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        title="Edytuj"
+                        aria-label="Edytuj"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => remove(it.id)}
+                        className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                        title="Usuń"
+                        aria-label="Usuń"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                </ProCard>
+                </div>
               );
             })
           )}
@@ -225,15 +318,13 @@ function PlanInner({ tripId }: { tripId: string }) {
       </div>
 
       {/* FAB */}
-      <div className="fixed inset-x-0 bottom-[92px] z-40 flex justify-center pointer-events-none">
-        <button
-          onClick={() => setOpen(true)}
-          className="pointer-events-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-900 text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.98]"
-          aria-label="Dodaj punkt"
-        >
-          <Plus size={22} />
-        </button>
-      </div>
+      <button
+        onClick={openAdd}
+        className="fixed bottom-[92px] right-5 z-40 grid h-14 w-14 place-items-center rounded-2xl bg-slate-900 text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.98]"
+        aria-label="Dodaj punkt"
+      >
+        <Plus size={22} />
+      </button>
 
       {/* Bottom sheet */}
       {open ? (
@@ -241,7 +332,9 @@ function PlanInner({ tripId }: { tripId: string }) {
           <div className="mx-auto w-full max-w-[430px]" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mt-[22vh] rounded-t-[28px] bg-white p-5 shadow-[0_-20px_80px_rgba(0,0,0,0.25)]">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-extrabold text-slate-900">Dodaj punkt</div>
+                <div className="text-sm font-extrabold text-slate-900">
+                  {editingId ? "Edytuj punkt" : "Dodaj punkt"}
+                </div>
                 <button
                   onClick={() => setOpen(false)}
                   className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
@@ -260,32 +353,36 @@ function PlanInner({ tripId }: { tripId: string }) {
                 />
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(["todo", "tickets", "transport", "stay", "other"] as Tag[]).map((t) => (
+              {/* tag zostawiamy w formularzu (wewnętrznie), ale bez pokazywania go na liście */}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["todo", "To-do"],
+                    ["transport", "Transport"],
+                    ["stay", "Nocleg"],
+                    ["tickets", "Bilety"],
+                    ["other", "Inne"],
+                  ] as [Tag, string][]
+                ).map(([value, label]) => (
                   <button
-                    key={t}
-                    onClick={() => setTag(t)}
+                    key={value}
+                    onClick={() => setTag(value)}
                     className={cx(
-                      "rounded-2xl px-3 py-2 text-xs font-semibold border",
-                      tag === t ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
+                      "rounded-2xl border px-3 py-2 text-sm font-semibold",
+                      tag === value
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-200 bg-white text-slate-700"
                     )}
                   >
-                    {tagUi(t).label}
+                    {label}
                   </button>
                 ))}
               </div>
 
-              <div className="mt-4 flex gap-2">
-                <ProButton className="flex-1" onClick={add}>
-                  Dodaj
+              <div className="mt-4">
+                <ProButton className="w-full" onClick={addOrSave}>
+                  {editingId ? "Zapisz zmiany" : "Dodaj punkt"}
                 </ProButton>
-                <ProButton variant="ghost" onClick={() => setText("Bilety / rezerwacje")}>
-                  Podpowiedź
-                </ProButton>
-              </div>
-
-              <div className="mt-3 text-xs text-slate-500">
-                Tip: klikaj w status na elemencie, żeby go przełączać.
               </div>
             </div>
           </div>

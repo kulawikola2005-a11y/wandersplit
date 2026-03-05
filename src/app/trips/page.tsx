@@ -111,7 +111,7 @@ export default function TripsPage() {
 
   useEffect(() => {
     const t = new Date();
-    setTitle("Nowy trip");
+    setTitle("");
     setStartDate(ymd(t));
     setEndDate(ymd(addDays(t, 3)));
   }, []);
@@ -210,7 +210,7 @@ export default function TripsPage() {
               onClick={() => createTrip(true)}
               disabled={busy || checking}
               className={cx(
-                "rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800",
+                "rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm border border-slate-200 hover:bg-slate-50",
                 (busy || checking) && "opacity-60"
               )}
             >
@@ -251,10 +251,7 @@ export default function TripsPage() {
               <button
                 onClick={() => createTrip(false)}
                 disabled={!canSubmit || checking}
-                className={cx(
-                  "rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-indigo-700",
-                  (!canSubmit || checking) && "opacity-50"
-                )}
+                className={cx("rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-slate-900 shadow-sm border border-slate-200 hover:bg-slate-50", "disabled:opacity-60 disabled:text-slate-400 disabled:cursor-not-allowed")}
               >
                 Utwórz
               </button>
@@ -283,7 +280,7 @@ export default function TripsPage() {
                   onClick={() => createTrip(true)}
                   disabled={busy}
                   className={cx(
-                    "rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800",
+                    "rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm border border-slate-200 hover:bg-slate-50",
                     busy && "opacity-60"
                   )}
                 >
@@ -307,7 +304,7 @@ export default function TripsPage() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Link
                           href={`/trips/${t.id}`}
-                          className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
                         >
                           Otwórz
                         </Link>

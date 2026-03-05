@@ -45,3 +45,11 @@ next-env.d.ts
 .supabase-local.env
 
 .next
+
+# local backups
+*.bak
+*.bak-*
+
+# local backups
+*.bak
+*.bak-*

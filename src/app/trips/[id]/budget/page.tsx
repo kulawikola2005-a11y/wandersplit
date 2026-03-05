@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2, Wallet, Users, Receipt, ArrowRightLeft } from "lucide-react";
 import TripHeroPro from "@/components/trip/TripHeroPro";
 import { ProButton, ProCard, ProInput, cx } from "@/components/ui/pro";
 
@@ -35,70 +35,21 @@ function fmt(amount: number, currency: string) {
   }
 }
 
-// równo + reszta po 1 cent
+// równy podział + reszta po 1 cent
 function splitCents(total: number, n: number) {
   const base = Math.floor(total / n);
   const rem = total % n;
   return Array.from({ length: n }, (_, i) => base + (i < rem ? 1 : 0));
 }
 
-function Chip({
-  active,
-  onClick,
-  children,
-  title,
-}: {
-  active?: boolean;
-  onClick?: () => void;
-  children: React.ReactNode;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={cx(
-        "rounded-2xl px-3 py-2 text-xs font-semibold border transition",
-        active
-          ? "bg-slate-900 text-white border-slate-900"
-          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Select({
-  value,
-  onChange,
-  children,
-  className,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={cx(
-        "h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10",
-        className
-      )}
-    >
-      {children}
-    </select>
-  );
-}
-
 export default function BudgetPage() {
   const params = useParams<{ id: string }>();
   const tripId = useMemo(() => (params?.id ? String(params.id) : ""), [params]);
+  if (!tripId) return null;
+  return <BudgetInner key={tripId} tripId={tripId} />;
+}
 
+function BudgetInner({ tripId }: { tripId: string }) {
   const keyPeople = useMemo(() => `wandersplit:people:${tripId}`, [tripId]);
   const keyExpenses = useMemo(() => `wandersplit:expenses:${tripId}`, [tripId]);
   const keyCurrency = useMemo(() => `wandersplit:currency:${tripId}`, [tripId]);
@@ -110,15 +61,13 @@ export default function BudgetPage() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState<string>("");
-  const [paidBy, setPaidBy] = useState<string>("");
+  const [amount, setAmount] = useState("");
+  const [paidBy, setPaidBy] = useState("");
   const [splitAmong, setSplitAmong] = useState<string[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
 
   // LOAD
   useEffect(() => {
-    if (!tripId) return;
-
     const cur = localStorage.getItem(keyCurrency);
     if (cur) setCurrency(cur);
 
@@ -146,23 +95,20 @@ export default function BudgetPage() {
         if (Array.isArray(arr)) setExpenses(arr);
       } catch {}
     }
-  }, [tripId, keyPeople, keyExpenses, keyCurrency]);
+  }, [keyCurrency, keyPeople, keyExpenses]);
 
   // SAVE
   useEffect(() => {
-    if (!tripId) return;
     localStorage.setItem(keyCurrency, currency);
-  }, [currency, tripId, keyCurrency]);
+  }, [currency, keyCurrency]);
 
   useEffect(() => {
-    if (!tripId) return;
     localStorage.setItem(keyPeople, JSON.stringify(people));
-  }, [people, tripId, keyPeople]);
+  }, [people, keyPeople]);
 
   useEffect(() => {
-    if (!tripId) return;
     localStorage.setItem(keyExpenses, JSON.stringify(expenses));
-  }, [expenses, tripId, keyExpenses]);
+  }, [expenses, keyExpenses]);
 
   function addPerson() {
     const name = newPerson.trim();
@@ -171,6 +117,7 @@ export default function BudgetPage() {
       setMsg("Ta osoba już istnieje.");
       return;
     }
+
     const next = [name, ...people];
     setPeople(next);
     setNewPerson("");
@@ -182,7 +129,7 @@ export default function BudgetPage() {
   function removePerson(name: string) {
     const used = expenses.some((e) => e.paidBy === name || e.splitAmong.includes(name));
     if (used) {
-      setMsg("Nie można usunąć osoby użytej w wydatkach. Najpierw usuń/zmień te wydatki.");
+      setMsg("Nie można usunąć osoby użytej w wydatkach.");
       return;
     }
     const next = people.filter((p) => p !== name);
@@ -193,17 +140,22 @@ export default function BudgetPage() {
   }
 
   function toggleSplit(name: string) {
-    setSplitAmong((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
+    setSplitAmong((prev) =>
+      prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
+    );
   }
 
   function addExpense() {
     setMsg(null);
+
     const t = title.trim();
     if (!t) return setMsg("Podaj nazwę wydatku.");
+
     const v = Number(amount.replace(",", "."));
     if (!Number.isFinite(v) || v <= 0) return setMsg("Podaj poprawną kwotę (np. 12.34).");
+
     if (!paidBy) return setMsg("Wybierz kto zapłacił.");
-    if (splitAmong.length === 0) return setMsg("Zaznacz kto dzieli koszt.");
+    if (splitAmong.length === 0) return setMsg("Zaznacz osoby do podziału.");
 
     const exp: Expense = {
       id: uid(),
@@ -223,7 +175,7 @@ export default function BudgetPage() {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   }
 
-  // BALANCES in cents
+  // BALANCES w centach
   const balancesCents = useMemo(() => {
     const b: Record<string, number> = {};
     for (const p of people) b[p] = 0;
@@ -246,7 +198,7 @@ export default function BudgetPage() {
     return b;
   }, [people, expenses]);
 
-  // SETTLEMENT (kto komu)
+  // kto komu
   const transfers = useMemo(() => {
     const creditors = Object.entries(balancesCents)
       .filter(([, c]) => c > 0)
@@ -259,7 +211,8 @@ export default function BudgetPage() {
       .sort((a, b) => b.c - a.c);
 
     const out: { from: string; to: string; cents: number }[] = [];
-    let i = 0, j = 0;
+    let i = 0;
+    let j = 0;
 
     while (i < debtors.length && j < creditors.length) {
       const d = debtors[i];
@@ -278,185 +231,294 @@ export default function BudgetPage() {
     return out;
   }, [balancesCents]);
 
-  const totalSpent = useMemo(() => expenses.reduce((acc, e) => acc + e.amount, 0), [expenses]);
+  const totalSpent = useMemo(
+    () => expenses.reduce((sum, e) => sum + e.amount, 0),
+    [expenses]
+  );
+
+  const sortedBalances = useMemo(
+    () => Object.entries(balancesCents).sort((a, b) => b[1] - a[1]),
+    [balancesCents]
+  );
 
   return (
-    <div className="pb-28">
+    <div className="min-h-dvh bg-slate-50 pb-28">
       <TripHeroPro tripId={tripId} section="Budżet" />
 
       <div className="px-4 space-y-4">
-        {/* SETTINGS */}
+        {/* Header sekcji */}
         <ProCard className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-extrabold text-slate-900">Uczestnicy i waluta</div>
-              <div className="mt-1 text-xs text-slate-500">
-                {people.length} {people.length === 1 ? "osoba" : people.length < 5 ? "osoby" : "osób"} · łącznie wydano:{" "}
-                <span className="font-semibold text-slate-700">{fmt(totalSpent, currency)}</span>
+              <div className="text-xl font-black tracking-tight text-slate-900">Budżet</div>
+              <div className="mt-1 text-sm leading-5 text-slate-600">
+                Wydatki grupowe i szybkie rozliczenie kto komu oddaje.
               </div>
             </div>
             <a
               href={`/trips/${tripId}`}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
-              ← Wróć do tripa
+              Wróć
             </a>
           </div>
 
-          <div className="mt-4 grid gap-3">
-            <div className="grid grid-cols-[120px_1fr_auto] gap-3">
-              <ProInput
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                placeholder="EUR"
-              />
-              <ProInput
-                value={newPerson}
-                onChange={(e) => setNewPerson(e.target.value)}
-                placeholder="Dodaj osobę (np. Bartek)"
-              />
-              <ProButton onClick={addPerson}>Dodaj</ProButton>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <Receipt size={14} /> Wydatki
+              </div>
+              <div className="mt-1 text-lg font-black text-slate-900">{expenses.length}</div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {people.map((p) => (
-                <div
-                  key={p}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
-                >
-                  {p}
-                  <button
-                    type="button"
-                    onClick={() => removePerson(p)}
-                    className="rounded-xl border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
-                    title="Usuń"
-                  >
-                    usuń
-                  </button>
-                </div>
-              ))}
+            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <Wallet size={14} /> Suma
+              </div>
+              <div className="mt-1 text-lg font-black text-slate-900">
+                {fmt(totalSpent, currency)}
+              </div>
             </div>
           </div>
         </ProCard>
 
-        {/* ADD EXPENSE */}
+        {/* Ustawienia + osoby */}
+        <ProCard className="p-4">
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-slate-500" />
+            <div className="text-sm font-extrabold text-slate-900">Osoby i waluta</div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-[110px_1fr_auto] gap-2">
+            <input
+              className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+              placeholder="EUR"
+            />
+            <input
+              className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+              value={newPerson}
+              onChange={(e) => setNewPerson(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addPerson();
+              }}
+              placeholder="Dodaj osobę"
+            />
+            <button
+              onClick={addPerson}
+              className="h-11 rounded-2xl bg-slate-900 px-4 text-sm font-bold text-white hover:bg-slate-800"
+              title="Dodaj osobę"
+              aria-label="Dodaj osobę"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {people.map((p) => (
+              <div
+                key={p}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                <span className="font-semibold text-slate-800">{p}</span>
+                <button
+                  onClick={() => removePerson(p)}
+                  className="rounded-lg px-1.5 py-0.5 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  title={`Usuń ${p}`}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {msg ? (
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {msg}
+            </div>
+          ) : null}
+        </ProCard>
+
+        {/* Dodaj wydatek */}
         <ProCard className="p-4">
           <div className="text-sm font-extrabold text-slate-900">Dodaj wydatek</div>
-          <div className="mt-1 text-xs text-slate-500">Wpisz nazwę i kwotę, wybierz płacącego i osoby dzielące koszt.</div>
 
-          <div className="mt-4 grid gap-3">
-            <ProInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. Kolacja" />
+          <div className="mt-3 space-y-2">
+            <ProInput
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="np. Kolacja, bilety, hotel"
+            />
 
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-3">
-              <ProInput
+            <div className="grid grid-cols-[1fr_1fr] gap-2">
+              <input
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Kwota (np. 12.34)"
+                inputMode="decimal"
+                placeholder="Kwota (np. 124.50)"
               />
-
-              <Select value={paidBy} onChange={setPaidBy}>
-                <option value="" disabled>
-                  Zapłacił(a)…
-                </option>
+              <select
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+                value={paidBy}
+                onChange={(e) => setPaidBy(e.target.value)}
+              >
+                <option value="">Kto zapłacił?</option>
                 {people.map((p) => (
                   <option key={p} value={p}>
                     {p}
                   </option>
                 ))}
-              </Select>
+              </select>
+            </div>
 
-              <ProButton onClick={addExpense} className="w-full">
+            <div>
+              <div className="mb-2 text-xs font-semibold text-slate-500">Podziel między</div>
+              <div className="flex flex-wrap gap-2">
+                {people.map((p) => {
+                  const active = splitAmong.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => toggleSplit(p)}
+                      className={cx(
+                        "rounded-2xl border px-3 py-2 text-sm font-semibold",
+                        active
+                          ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                          : "border-slate-200 bg-white text-slate-700"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-1">
+              <ProButton className="w-full" onClick={addExpense}>
                 Dodaj wydatek
               </ProButton>
             </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-4">
-              <div className="text-xs font-semibold text-slate-700">Dzielone między</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {people.map((p) => (
-                  <Chip key={p} active={splitAmong.includes(p)} onClick={() => toggleSplit(p)}>
-                    {p}
-                  </Chip>
-                ))}
-              </div>
-              <div className="mt-3 text-xs text-slate-500">
-                Tip: w MVP dzielimy koszt równo między zaznaczone osoby (z dokładnością do centów).
-              </div>
-            </div>
-
-            {msg ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                {msg}
-              </div>
-            ) : null}
           </div>
         </ProCard>
 
-        {/* LIST + SETTLEMENT */}
+        {/* Salda */}
         <ProCard className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-extrabold text-slate-900">Wydatki</div>
-              <div className="mt-1 text-xs text-slate-500">{expenses.length} pozycji</div>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {expenses.length === 0 ? (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center">
-                <div className="text-base font-extrabold text-slate-900">Brak wydatków</div>
-                <div className="mt-2 text-sm text-slate-600">Dodaj pierwszy wydatek powyżej.</div>
+          <div className="text-sm font-extrabold text-slate-900">Salda osób</div>
+          <div className="mt-3 space-y-2">
+            {sortedBalances.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-500">
+                Brak danych.
               </div>
             ) : (
-              expenses.map((e) => (
-                <div key={e.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-extrabold text-slate-900 break-words">{e.title}</div>
-                      <div className="mt-1 text-xs text-slate-500">
-                        {fmt(e.amount, currency)} · zapłacił(a): <span className="font-semibold">{e.paidBy}</span> · dzielone:{" "}
-                        {e.splitAmong.join(", ")}
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500">
-                        {new Date(e.createdAt).toLocaleString("pl-PL")}
-                      </div>
-                    </div>
+              sortedBalances.map(([name, cents]) => {
+                const amountValue = fromCents(Math.abs(cents));
+                const positive = cents > 0;
+                const zero = cents === 0;
 
-                    <button
-                      onClick={() => removeExpense(e.id)}
-                      className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
-                      title="Usuń"
+                return (
+                  <div
+                    key={name}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-3"
+                  >
+                    <div className="text-sm font-semibold text-slate-900">{name}</div>
+                    <div
+                      className={cx(
+                        "text-sm font-bold",
+                        zero && "text-slate-500",
+                        positive && "text-emerald-700",
+                        cents < 0 && "text-rose-700"
+                      )}
                     >
-                      <Trash2 size={18} />
-                    </button>
+                      {zero ? "0" : positive ? "+" : "-"}
+                      {fmt(amountValue, currency)}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </ProCard>
+
+        {/* Rozliczenia */}
+        <ProCard className="p-4">
+          <div className="flex items-center gap-2">
+            <ArrowRightLeft size={16} className="text-slate-500" />
+            <div className="text-sm font-extrabold text-slate-900">Kto komu oddaje</div>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {transfers.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-500">
+                Brak rozliczeń. Wszystko jest wyrównane albo nie ma wydatków.
+              </div>
+            ) : (
+              transfers.map((t, idx) => (
+                <div
+                  key={`${t.from}-${t.to}-${idx}`}
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-3"
+                >
+                  <div className="min-w-0 text-sm text-slate-700">
+                    <span className="font-semibold text-slate-900">{t.from}</span>
+                    <span className="mx-2 text-slate-400">→</span>
+                    <span className="font-semibold text-slate-900">{t.to}</span>
+                  </div>
+                  <div className="text-sm font-bold text-slate-900">
+                    {fmt(fromCents(t.cents), currency)}
                   </div>
                 </div>
               ))
             )}
           </div>
+        </ProCard>
 
-          <div className="mt-6 border-t border-slate-200 pt-4">
-            <div className="text-sm font-extrabold text-slate-900">Rozliczenie</div>
-            <div className="mt-1 text-xs text-slate-500">Kto komu powinien oddać, żeby wyrównać saldo.</div>
+        {/* Lista wydatków */}
+        <ProCard className="p-4">
+          <div className="text-sm font-extrabold text-slate-900">Wydatki</div>
 
-            <div className="mt-4 space-y-2">
-              {transfers.length === 0 ? (
-                <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-                  Brak przelewów — wygląda na to, że wszystko jest już równo.
-                </div>
-              ) : (
-                transfers.map((t, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-3xl border border-slate-200 bg-white p-3 text-sm text-slate-800"
-                  >
-                    <span className="font-semibold">{t.from}</span> →{" "}
-                    <span className="font-semibold">{t.to}</span>{" "}
-                    <span className="text-slate-500">({fmt(fromCents(t.cents), currency)})</span>
+          <div className="mt-3 space-y-2">
+            {expenses.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                Brak wydatków. Dodaj pierwszy wydatek powyżej.
+              </div>
+            ) : (
+              expenses.map((e) => (
+                <div
+                  key={e.id}
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-extrabold text-slate-900 break-words">
+                        {e.title}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Zapłacił(a): <span className="font-semibold text-slate-700">{e.paidBy}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Podział: {e.splitAmong.join(", ")}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="text-sm font-black text-slate-900">
+                        {fmt(e.amount, currency)}
+                      </div>
+                      <button
+                        onClick={() => removeExpense(e.id)}
+                        className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                        title="Usuń wydatek"
+                        aria-label="Usuń wydatek"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+              ))
+            )}
           </div>
         </ProCard>
       </div>
