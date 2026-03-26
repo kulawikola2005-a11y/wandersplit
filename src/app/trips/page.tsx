@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { getTripCoverUrl } from "@/lib/trips/media";
 import { getTripCoverDeterministic } from "@/lib/mobile/covers";
 
 import PageHeader from "@/components/app/PageHeader";
@@ -17,6 +18,7 @@ type Trip = {
   end_date: string;
   base_currency: string;
   created_at: string;
+  cover_path?: string | null;
 };
 
 function uid() {
@@ -37,18 +39,18 @@ function addDays(date: Date, days: number) {
   return d;
 }
 
-function readTrips(): Trip[] {
-  try {
-    const raw = localStorage.getItem("wandersplit:trips");
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
-  } catch {
+async function readTripsFromDB(): Promise<Trip[]> {
+  const { data, error } = await supabase
+    .from("trips")
+    .select("id, title, start_date, end_date, base_currency, created_at, cover_path")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("readTripsFromDB error:", error);
     return [];
   }
-}
-function saveTrips(trips: Trip[]) {
-  localStorage.setItem("wandersplit:trips", JSON.stringify(trips));
+
+  return data ?? [];
 }
 
 function seedEmpty(tripId: string) {
@@ -103,8 +105,10 @@ export default function TripsPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
 
   const [title, setTitle] = useState("");
+const [coverUrl, setCoverUrl] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [currency, setCurrency] = useState("EUR");
@@ -128,7 +132,23 @@ export default function TripsPage() {
       }
 
       setUserEmail(u.user.email ?? null);
-      setTrips(readTrips());
+
+      const loadedTrips = await readTripsFromDB();
+      setTrips(loadedTrips);
+
+      const map: Record<string, string> = {};
+      for (const t of loadedTrips) {
+        if (t.cover_path) {
+          try {
+            const url = await getTripCoverUrl(t.cover_path);
+            if (url) map[t.id] = url;
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+      setCoverUrls(map);
+
       setChecking(false);
     })();
   }, []);
@@ -143,7 +163,7 @@ export default function TripsPage() {
     }
   }
 
-  function createTrip(demo = false) {
+  async function createTrip(demo = false) {
     setMsg(null);
 
     const t = (demo ? "Rome (Demo)" : title).trim();
@@ -161,13 +181,45 @@ export default function TripsPage() {
       created_at: new Date().toISOString(),
     };
 
-    const next = [trip, ...trips];
-    setTrips(next);
-    saveTrips(next);
+    const { data: u } = await supabase.auth.getUser();
+
+    if (!u?.user) {
+      setMsg("Brak użytkownika.");
+      return;
+    }
+
+    const { error } = await supabase.from("trips").insert({
+      id,
+      user_id: u.user.id,
+      title: t,
+      start_date: startDate,
+      end_date: endDate,
+      base_currency: currency || "EUR",
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error("insert trip error:", error);
+      setMsg("Nie udało się zapisać tripa.");
+      return;
+    }
+
+    const { error: memberError } = await supabase.from("trip_members").insert({
+      trip_id: id,
+      user_id: u.user.id,
+      role: "owner",
+    });
+
+    if (memberError) {
+      console.error("insert trip_members error:", memberError);
+      setMsg("Trip zapisany, ale nie udało się dodać ownera do uczestników.");
+      return;
+    }
 
     if (demo) seedDemo(id);
     else seedEmpty(id);
 
+    setTrips(await readTripsFromDB());
     window.location.href = `/trips/${id}`;
   }
 
@@ -204,19 +256,7 @@ export default function TripsPage() {
       <div className="space-y-6">
         <Section
           title="Utwórz nowy trip"
-          subtitle="Podaj nazwę, daty i walutę bazową. Możesz też wczytać demo."
-          right={
-            <button
-              onClick={() => createTrip(true)}
-              disabled={busy || checking}
-              className={cx(
-                "rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm border border-slate-200 hover:bg-slate-50",
-                (busy || checking) && "opacity-60"
-              )}
-            >
-              Wczytaj demo
-            </button>
-          }
+          subtitle="Podaj nazwę, daty i walutę bazową."
         >
           <div className="grid gap-3">
             <input
@@ -251,50 +291,50 @@ export default function TripsPage() {
               <button
                 onClick={() => createTrip(false)}
                 disabled={!canSubmit || checking}
-                className={cx("rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-slate-900 shadow-sm border border-slate-200 hover:bg-slate-50", "disabled:opacity-60 disabled:text-slate-400 disabled:cursor-not-allowed")}
+                className={cx(
+                  "rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-slate-900 shadow-sm border border-slate-200 hover:bg-slate-50",
+                  "disabled:opacity-60 disabled:text-slate-400 disabled:cursor-not-allowed"
+                )}
               >
                 Utwórz
               </button>
             </div>
 
             {msg ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 {msg}
               </div>
             ) : null}
           </div>
         </Section>
 
-        <Section title="Twoje tripy" subtitle="Otwieraj, udostępniaj i eksportuj PDF.">
+        <Section
+          title="Lista tripów"
+          subtitle="Tutaj zobaczysz swoje zapisane podróże."
+        >
           {checking ? (
             <div className="space-y-3">
-              <SkeletonBlock className="h-28 w-full" />
-              <SkeletonBlock className="h-28 w-full" />
+              <SkeletonBlock className="h-28 rounded-3xl" />
+              <SkeletonBlock className="h-28 rounded-3xl" />
             </div>
           ) : trips.length === 0 ? (
             <EmptyState
-              title="Brak tripów"
-              description="Stwórz pierwszy trip albo wczytaj demo, żeby zobaczyć jak to działa."
-              action={
-                <button
-                  onClick={() => createTrip(true)}
-                  disabled={busy}
-                  className={cx(
-                    "rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm border border-slate-200 hover:bg-slate-50",
-                    busy && "opacity-60"
-                  )}
-                >
-                  Wczytaj demo
-                </button>
-              }
+              title="Nie masz jeszcze żadnych tripów"
+              description="Utwórz swój pierwszy trip powyżej."
             />
           ) : (
             <div className="space-y-4">
               {trips.map((t) => {
-                const cover = getTripCoverDeterministic(t.id);
+                const cover = coverUrls[t.id] || getTripCoverDeterministic(t.id);
                 return (
-                  <div key={t.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                    <div className="h-28 bg-cover bg-center" style={{ backgroundImage: `url('${cover}')` }} />
+                  <div
+                    key={t.id}
+                    className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+                  >
+                    <div
+                      className="h-28 bg-cover bg-center"
+                      style={{ backgroundImage: `url('${cover}')` }}
+                    />
                     <div className="p-4">
                       <div className="text-base font-black">{t.title}</div>
                       <div className="mt-1 text-sm text-slate-600">
@@ -328,6 +368,13 @@ export default function TripsPage() {
                           className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
                         >
                           Export PDF
+                        </Link>
+
+                        <Link
+                          href={`/trips/${t.id}/memories`}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                        >
+                          Memories
                         </Link>
                       </div>
                     </div>

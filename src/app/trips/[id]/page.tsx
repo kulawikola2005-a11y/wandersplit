@@ -3,126 +3,44 @@
 import Link from "next/link";
 import { useMemo, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CalendarDays, Wallet, ListTodo, Map, CloudSun, Share2, UserPlus, Globe, ChevronRight } from "lucide-react";
-import TripHeroPro from "@/components/trip/TripHeroPro";
+import { CalendarDays, Wallet, ListTodo, MapPin, ImageIcon, ChevronRight, Users } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
+import { getTripCoverUrl } from "@/lib/trips/media";
+import { listTripMembers, type TripMember, removeMember } from "@/lib/trips/members";
+import { getUserEmail } from "@/lib/trips/users";
+import { updateMemberRole } from "@/lib/trips/memberRoles";
 
 type Trip = {
   id: string;
   title: string;
-  start_date?: string;
-  end_date?: string;
-  base_currency?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  base_currency?: string | null;
+  cover_path?: string | null;
+  user_id?: string | null;
 };
 
-type Stop = {
-  id: string;
-  name: string;
-  countryCode?: string;
-  sort_order: number;
-  lat?: number;
-  lng?: number;
-};
-
-type PlanItem = {
-  id: string;
-  text: string;
-  status: "todo" | "doing" | "done";
-};
-
-type ChecklistItem = {
-  id: string;
-  text: string;
-  done: boolean;
-};
-
-type Expense = {
-  id: string;
-  title: string;
-  amount: number;
-};
-
-function safeRead<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window === "undefined") return fallback;
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function cx(...v: Array<string | false | null | undefined>) {
-  return v.filter(Boolean).join(" ");
-}
-
-function SectionHeader({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-}) {
+function NavRow({ href, icon, title, subtitle }: any) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <h2 className="text-base font-black tracking-tight text-slate-900">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  );
-}
-
-function NavRow({
-  href,
-  icon,
-  title,
-  subtitle,
-  badge,
-  strong = false,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-  badge?: string;
-  strong?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cx(
-        "group flex items-center gap-3 rounded-2xl px-3 py-3 ring-1 ring-slate-200/90 hover:bg-white transition",
-        strong ? "bg-white/95" : "bg-white/75"
-      )}
-    >
-      <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">
+    <Link href={href} className="flex items-center gap-3 rounded-2xl px-4 py-4 bg-white ring-1 ring-slate-200 hover:bg-slate-50">
+      <div className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 text-indigo-700">
         {icon}
       </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-extrabold text-slate-900">{title}</div>
-        {subtitle ? <div className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</div> : null}
+      <div className="flex-1">
+        <div className="text-sm font-extrabold text-slate-900">{title}</div>
+        <div className="text-xs text-slate-500">{subtitle}</div>
       </div>
-
-      {badge ? (
-        <div className="rounded-xl bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
-          {badge}
-        </div>
-      ) : null}
-
-      <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600" />
+      <ChevronRight size={16} />
     </Link>
   );
 }
 
-function metricLabel(count: number, one: string, few: string, many: string) {
-  if (count === 1) return `${count} ${one}`;
-  if (count >= 2 && count <= 4) return `${count} ${few}`;
-  return `${count} ${many}`;
+function initials(value: string) {
+  const safe = value.trim();
+  if (!safe) return "?";
+  const parts = safe.split(/[\s@._-]+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 export default function TripHomePage() {
@@ -130,233 +48,393 @@ export default function TripHomePage() {
   const tripId = useMemo(() => String(params?.id || ""), [params]);
 
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [stops, setStops] = useState<Stop[]>([]);
-  const [plan, setPlan] = useState<PlanItem[]>([]);
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [currency, setCurrency] = useState("EUR");
+  const [loading, setLoading] = useState(true);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [members, setMembers] = useState<TripMember[]>([]);
+  const [emails, setEmails] = useState<Record<string, string>>({});
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const [inviteRole, setInviteRole] = useState<"viewer" | "editor">("viewer");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!tripId) return;
+    async function loadTrip() {
+      if (!tripId) return;
 
-    const trips = safeRead<Trip[]>("wandersplit:trips", []);
-    const found = trips.find((t) => t.id === tripId) ?? null;
-    setTrip(found);
+      setLoading(true);
+      setStatus(null);
 
-    const readStops = safeRead<Stop[]>(`wandersplit:stops:${tripId}`, []).slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    const readPlan = safeRead<PlanItem[]>(`wandersplit:plan:${tripId}`, []);
-    const readChecklist = safeRead<ChecklistItem[]>(`wandersplit:checklist:${tripId}`, []);
-    const readExpenses = safeRead<Expense[]>(`wandersplit:expenses:${tripId}`, []);
-    const cur = localStorage.getItem(`wandersplit:currency:${tripId}`) || found?.base_currency || "EUR";
+      const { data: auth } = await supabase.auth.getUser();
+      setCurrentUserId(auth?.user?.id || null);
 
-    setStops(Array.isArray(readStops) ? readStops : []);
-    setPlan(Array.isArray(readPlan) ? readPlan : []);
-    setChecklist(Array.isArray(readChecklist) ? readChecklist : []);
-    setExpenses(Array.isArray(readExpenses) ? readExpenses : []);
-    setCurrency(cur);
+      const { data, error } = await supabase
+        .from("trips")
+        .select("id, title, start_date, end_date, base_currency, cover_path, user_id")
+        .eq("id", tripId)
+        .single();
+
+      if (error) {
+        console.error("loadTrip error:", error);
+        setTrip(null);
+        setCoverUrl(null);
+        setLoading(false);
+        return;
+      }
+
+      setTrip(data);
+
+      if (data?.cover_path) {
+        try {
+          const url = await getTripCoverUrl(data.cover_path);
+          setCoverUrl(url);
+        } catch (e) {
+          console.error(e);
+          setCoverUrl(null);
+        }
+      } else {
+        setCoverUrl(null);
+      }
+
+      try {
+        const loadedMembers = await listTripMembers(tripId);
+        setMembers(loadedMembers);
+
+        const map: Record<string, string> = {};
+        for (const m of loadedMembers) {
+          try {
+            map[m.user_id] = await getUserEmail(m.user_id);
+          } catch {
+            map[m.user_id] = m.user_id;
+          }
+        }
+
+        if (data?.user_id && !map[data.user_id]) {
+          try {
+            map[data.user_id] = await getUserEmail(data.user_id);
+          } catch {
+            map[data.user_id] = data.user_id;
+          }
+        }
+
+        setEmails(map);
+      } catch (e) {
+        console.error(e);
+        setMembers([]);
+      }
+
+      setLoading(false);
+    }
+
+    loadTrip();
   }, [tripId]);
 
-  const planTodo = plan.filter((p) => p.status !== "done").length;
-  const checklistLeft = checklist.filter((c) => !c.done).length;
-  const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const ownerIsCurrentUser = trip?.user_id === currentUserId;
+  const myMember = members.find((m) => m.user_id === currentUserId);
+  const myRole = ownerIsCurrentUser ? "owner" : (myMember?.role || "viewer");
+  const canManageMembers = myRole === "owner";
+  const otherMembers = members.filter((m) => m.user_id !== trip?.user_id);
 
-  const firstStops = stops.slice(0, 3).map((s) => s.name).filter(Boolean);
-  const routePreview =
-    firstStops.length === 0
-      ? "Dodaj pierwszy przystanek"
-      : firstStops.join(" → ") + (stops.length > 3 ? ` +${stops.length - 3}` : "");
+  function canRemoveMember(member: TripMember) {
+    if (!trip || !currentUserId) return false;
+    if (ownerIsCurrentUser) return member.user_id !== trip.user_id;
+    return member.user_id === currentUserId;
+  }
+
+  async function reloadMembers() {
+    const updated = await listTripMembers(tripId);
+    setMembers(updated);
+
+    const map: Record<string, string> = {};
+    for (const m of updated) {
+      try {
+        map[m.user_id] = await getUserEmail(m.user_id);
+      } catch {
+        map[m.user_id] = m.user_id;
+      }
+    }
+    if (trip?.user_id && !map[trip.user_id]) {
+      try {
+        map[trip.user_id] = await getUserEmail(trip.user_id);
+      } catch {
+        map[trip.user_id] = trip.user_id;
+      }
+    }
+    setEmails(map);
+  }
+
+  async function onRemoveMember(memberId: string, isSelf = false) {
+    if (!confirm(isSelf ? "Opuścić trip?" : "Usunąć uczestnika?")) return;
+    try {
+      setStatus(null);
+      await removeMember(memberId);
+
+      if (isSelf) {
+        window.location.href = "/trips";
+        return;
+      }
+
+      await reloadMembers();
+      setStatus("Zaktualizowano uczestników.");
+    } catch (e) {
+      console.error(e);
+      alert("Błąd usuwania");
+    }
+  }
+
+  async function onChangeRole(memberId: string, role: "viewer" | "editor") {
+    try {
+      setStatus(null);
+      await updateMemberRole(memberId, role);
+      await reloadMembers();
+      setStatus("Rola została zmieniona.");
+    } catch (e) {
+      console.error(e);
+      alert("Nie udało się zmienić roli");
+    }
+  }
+
+  async function onCreateInvite() {
+    try {
+      setInviteBusy(true);
+      setStatus(null);
+
+      const bytes = new Uint8Array(24);
+      window.crypto.getRandomValues(bytes);
+      const token = Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) {
+        alert("Musisz być zalogowana");
+        return;
+      }
+
+      const payload = {
+        trip_id: tripId,
+        token,
+        created_by: authData.user.id,
+        role: inviteRole,
+        expires_at: expiresAt,
+      };
+
+      const { error } = await supabase.from("trip_invites").insert(payload);
+
+      if (error) {
+        alert("Błąd insert: " + error.message);
+        return;
+      }
+
+      const link = `${window.location.origin}/join/${token}`;
+
+      try {
+        await navigator.clipboard.writeText(link);
+        setStatus(`Link zaproszenia (${inviteRole}) skopiowany.`);
+        alert("Link zaproszenia skopiowany!\n\n" + link);
+      } catch (copyError) {
+        console.error("clipboard error:", copyError);
+        prompt("Link utworzony. Skopiuj ręcznie:", link);
+      }
+    } catch (e) {
+      console.error("invite fatal error:", e);
+      alert("Błąd tworzenia linku: " + (e instanceof Error ? e.message : JSON.stringify(e)));
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+
+  const tripMissing = !loading && !trip;
 
   return (
-    <div className="relative pb-28">
-        <a
-          href="/trips"
-          className="fixed-4 top-[max(12px,env(safe-area-inset-top))] z-[9999] inline-flex items-center gap-2 rounded-2xl bg-white/95 px-3 py-2 text-sm font-semibold text-slate-800 shadow-[0_10px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5 backdrop-blur"
-        >
-          ← Wszystkie wycieczki
-        </a>
+    <div className="pb-28 px-4 pt-5">
+      <div className="mx-auto max-w-3xl space-y-5">
 
-      <TripHeroPro tripId={tripId} section="Trip" />
-
-        <div className="px-4 pt-3">
-          <Link
-            href="/trips"
-            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            onClick={() => window.location.reload()}
+            className="border px-3 py-1 rounded-xl text-sm"
           >
-            ← Wszystkie wycieczki
-          </Link>
+            🔄 Odśwież
+          </button>
+
+          <button
+            onClick={() => { window.location.href = "/trips"; }}
+            className="border px-4 py-2 rounded-xl"
+          >
+            ← Powrót
+          </button>
+
+          <div className="flex flex-wrap gap-2">
+            {canManageMembers && (
+              <>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as "viewer" | "editor")}
+                  className="border px-3 py-2 rounded-xl bg-white"
+                  disabled={inviteBusy}
+                >
+                  <option value="viewer">viewer invite</option>
+                  <option value="editor">editor invite</option>
+                </select>
+
+                <button
+                  onClick={onCreateInvite}
+                  className="border px-4 py-2 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={inviteBusy}
+                >
+                  {inviteBusy ? "Tworzenie..." : "Zaproś znajomych"}
+                </button>
+              </>
+            )}
+
+            <Link href={`/trips/${tripId}/cover`} className="border px-4 py-2 rounded-xl">
+              Okładka
+            </Link>
+          </div>
         </div>
 
-        <div className="px-4 pt-3">
-          <Link
-            href="/trips"
-            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            ← Wszystkie wycieczki
-          </Link>
-        </div>
+        {status && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {status}
+          </div>
+        )}
 
-      <div className="px-4 pt-4 space-y-6">
-        {/* Intro / quick context (jedna lekka karta) */}
-        <section className="rounded-2xl bg-white/80 px-4 py-4 ring-1 ring-slate-200/90">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="truncate text-base font-black text-slate-900">
-                {trip?.title || "Twój trip"}
-              </div>
-              <div className="mt-1 text-sm text-slate-600">
-                {trip?.start_date && trip?.end_date
-                  ? `${trip.start_date} → ${trip.end_date}`
-                  : "Uzupełnij trasę, plan i budżet przed wyjazdem."}
-              </div>
-            </div>
-            <div className="rounded-xl bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-200">
-              {currency}
+        {tripMissing ? (
+          <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200">
+            <div className="text-lg font-bold text-slate-900">Nie udało się otworzyć tripa</div>
+            <div className="mt-2 text-sm text-slate-600">
+              Trip nie istnieje albo nie masz do niego dostępu.
             </div>
           </div>
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200">
+              {coverUrl ? (
+                <img src={coverUrl} alt={trip?.title || "Cover"} className="h-56 w-full object-cover" />
+              ) : (
+                <div className="flex h-56 items-center justify-center bg-slate-100 text-slate-400">
+                  Brak okładki
+                </div>
+              )}
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
-              <div className="text-xs text-slate-500">Trasa</div>
-              <div className="mt-0.5 text-sm font-bold text-slate-900">
-                {metricLabel(stops.length, "stop", "stopy", "stopów")}
+              <div className="p-5">
+                <div className="text-sm text-slate-500">WanderSplit</div>
+                <div className="text-2xl font-black mt-1">{loading ? "Ładowanie..." : (trip?.title || "Trip")}</div>
+
+                <div className="text-sm text-slate-500 mt-1">
+                  {trip?.start_date && trip?.end_date ? `${trip.start_date} → ${trip.end_date}` : "Dodaj daty"}
+                </div>
+
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <span className="font-semibold">{trip?.base_currency || "EUR"}</span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">
+                    {myRole}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
-              <div className="text-xs text-slate-500">Plan</div>
-              <div className="mt-0.5 text-sm font-bold text-slate-900">
-                {metricLabel(planTodo, "zadanie", "zadania", "zadań")}
+
+            <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
+              <div className="flex items-center gap-2">
+                <Users size={18} />
+                <div className="text-base font-black">Uczestnicy</div>
               </div>
-            </div>
-            <div className="rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
-              <div className="text-xs text-slate-500">Checklist</div>
-              <div className="mt-0.5 text-sm font-bold text-slate-900">
-                {metricLabel(checklistLeft, "rzecz", "rzeczy", "rzeczy")}
+
+              <div className="mt-4 space-y-2">
+                {trip?.user_id ? (
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid h-10 w-10 place-items-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                        {initials(ownerIsCurrentUser ? "Ty" : (emails[trip.user_id] || trip.user_id))}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">
+                          {ownerIsCurrentUser ? "Ty" : (emails[trip.user_id] || trip.user_id)}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          właściciel tripa
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                      owner
+                    </div>
+                  </div>
+                ) : null}
+
+                {otherMembers.length === 0 ? (
+                  <div className="text-sm text-slate-500">Na razie brak innych uczestników.</div>
+                ) : (
+                  otherMembers.map((member) => {
+                    const label = member.user_id === currentUserId ? "Ty" : (emails[member.user_id] || member.user_id);
+
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                            {initials(label)}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-slate-900">
+                              {label}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              dołączono: {new Date(member.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {canManageMembers && member.user_id !== currentUserId ? (
+                            <select
+                              value={member.role || "viewer"}
+                              onChange={(e) => onChangeRole(member.id, e.target.value as "viewer" | "editor")}
+                              className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700"
+                            >
+                              <option value="viewer">viewer</option>
+                              <option value="editor">editor</option>
+                            </select>
+                          ) : (
+                            <div className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">
+                              {member.role || "viewer"}
+                            </div>
+                          )}
+
+                          {canRemoveMember(member) && (
+                            <button
+                              onClick={() => onRemoveMember(member.id, member.user_id === currentUserId)}
+                              className="rounded-xl border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50"
+                              title={member.user_id === currentUserId ? "Opuść trip" : "Usuń uczestnika"}
+                            >
+                              {member.user_id === currentUserId ? "Opuść" : "Usuń"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
+            </section>
+
+            <div className="space-y-2">
+              <NavRow href={`/trips/${tripId}/stops`} icon={<MapPin size={18} />} title="Stops" subtitle="Trasa podróży" />
+              <NavRow href={`/trips/${tripId}/plan`} icon={<ListTodo size={18} />} title="Plan" subtitle="Zadania i organizacja" />
+              <NavRow href={`/trips/${tripId}/checklist`} icon={<CalendarDays size={18} />} title="Checklist" subtitle="Pakowanie" />
+              <NavRow href={`/trips/${tripId}/budget`} icon={<Wallet size={18} />} title="Budżet" subtitle="Koszty" />
+              <NavRow href={`/trips/${tripId}/memories`} icon={<ImageIcon size={18} />} title="Memories" subtitle="Zdjęcia z podróży" />
             </div>
-          </div>
-        </section>
+          </>
+        )}
 
-        {/* Przygotowanie */}
-        <section className="space-y-3">
-          <SectionHeader
-            title="Przygotowanie"
-            description="Najważniejsze rzeczy przed wyjazdem — trasa, plan, pakowanie i budżet."
-          />
-
-          <div className="space-y-2">
-            <NavRow
-              href={`/trips/${tripId}/stops`}
-              icon={<Map size={18} />}
-              title="Trasa i przystanki"
-              subtitle={routePreview}
-              badge={stops.length ? String(stops.length) : undefined}
-              strong
-            />
-            <NavRow
-              href={`/trips/${tripId}/plan`}
-              icon={<ListTodo size={18} />}
-              title="Plan"
-              subtitle={
-                plan.length
-                  ? `${planTodo} do zrobienia • ${plan.length - planTodo} zamknięte`
-                  : "Dodaj zadania, bilety, noclegi, transport"
-              }
-              badge={plan.length ? String(planTodo) : undefined}
-            />
-            <NavRow
-              href={`/trips/${tripId}/checklist`}
-              icon={<CalendarDays size={18} />}
-              title="Checklist"
-              subtitle={
-                checklist.length
-                  ? `${checklistLeft} rzeczy do spakowania`
-                  : "Dokumenty, ładowarka, ubezpieczenie…"
-              }
-              badge={checklist.length ? String(checklistLeft) : undefined}
-            />
-            <NavRow
-              href={`/trips/${tripId}/budget`}
-              icon={<Wallet size={18} />}
-              title="Budżet"
-              subtitle={
-                expenses.length
-                  ? `${expenses.length} wydatków • ${totalExpenses.toFixed(2)} ${currency}`
-                  : "Dodaj osoby i pierwszy wydatek"
-              }
-            />
-          </div>
-        </section>
-
-        {/* W podróży */}
-        <section className="space-y-3">
-          <SectionHeader
-            title="W podróży"
-            description="Szybki dostęp do mapy i pogody podczas wyjazdu."
-          />
-
-          <div className="space-y-2">
-            <NavRow
-              href={`/trips/${tripId}/map`}
-              icon={<Map size={18} />}
-              title="Mapa"
-              subtitle="Duży widok trasy i punktów"
-            />
-            <NavRow
-              href={`/trips/${tripId}/weather`}
-              icon={<CloudSun size={18} />}
-              title="Pogoda"
-              subtitle="Prognoza dla trasy / przystanków"
-            />
-          </div>
-        </section>
-
-        {/* Współdzielenie */}
-        <section className="space-y-3">
-          <SectionHeader
-            title="Współdzielenie"
-            description="Zaproś ekipę i udostępnij plan podróży."
-          />
-
-          <div className="space-y-2">
-            <NavRow
-              href={`/trips/${tripId}/invite`}
-              icon={<UserPlus size={18} />}
-              title="Invite"
-              subtitle="Zaproś osoby do wspólnego tripa"
-            />
-            <NavRow
-              href={`/trips/${tripId}/share`}
-              icon={<Share2 size={18} />}
-              title="Share"
-              subtitle="Link współdzielony do tripa"
-            />
-            <NavRow
-              href={`/trips/${tripId}/public`}
-              icon={<Globe size={18} />}
-              title="Public link"
-              subtitle="Publiczny podgląd trasy"
-            />
-          </div>
-        </section>
-
-        {/* Dodatkowe akcje jako linki tekstowe (bez kafli) */}
-        <section className="space-y-2 pt-1">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Dodatkowe akcje
-          </div>
-
-          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-            <Link href={`/trips/${tripId}/export`} className="font-semibold text-indigo-700 hover:text-indigo-800">
-              Eksport PDF
-            </Link>
-            <Link href={`/trips/${tripId}/map`} className="font-semibold text-slate-700 hover:text-slate-900">
-              Otwórz mapę
-            </Link>
-            <Link href={`/trips/${tripId}/budget`} className="font-semibold text-slate-700 hover:text-slate-900">
-              Dodaj wydatek
-            </Link>
-          </div>
-        </section>
       </div>
     </div>
   );

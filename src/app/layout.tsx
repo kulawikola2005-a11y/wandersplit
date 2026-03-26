@@ -1,22 +1,10 @@
+import "./globals.css";
 import type { Metadata } from "next";
 import MobileFrame from "@/components/MobileFrame";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import "leaflet/dist/leaflet.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "WanderSplit",
-  description: "Plan, budżet, mapa i podział kosztów w podróży.",
+  description: "Planowanie podróży i budżetu grupowego",
 };
 
 export default function RootLayout({
@@ -25,11 +13,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased ws-pirates`}
-      >
-        <MobileFrame>{children}</MobileFrame>
+    <html lang="pl">
+      <body>
+        <div className="min-h-dvh bg-[#020617] px-3 py-4">
+          <MobileFrame>{children}</MobileFrame>
+        </div>
       </body>
     </html>
   );

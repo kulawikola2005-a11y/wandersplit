@@ -11,19 +11,9 @@ import {
   useMap,
 } from "react-leaflet";
 import L, { LatLngExpression, Map as LeafletMap } from "leaflet";
-import {
-  LocateFixed,
-  Plus,
-  Search,
-  X,
-  ChevronUp,
-  ChevronDown,
-  Navigation,
-  Trash2,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
+import { LocateFixed } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import { readStopsFromDB, deleteStopFromDB, type TripStop } from "@/lib/trips/db";
 
 type Stop = {
   id: string;
@@ -38,29 +28,21 @@ type Props = {
   tripId: string;
 };
 
-function safeRead<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window === "undefined") return fallback;
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function safeWrite(key: string, value: unknown) {
-  try {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
-
 function cx(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
 }
 
-// Fix domyślnych ikonek Leaflet
+function mapDbStopToStop(s: TripStop): Stop {
+  return {
+    id: s.id,
+    name: s.name,
+    countryCode: s.country_code ?? undefined,
+    sort_order: s.sort_order,
+    lat: typeof s.lat === "number" ? s.lat : undefined,
+    lng: typeof s.lng === "number" ? s.lng : undefined,
+  };
+}
+
 function fixLeafletIcons() {
   // @ts-ignore
   delete L.Icon.Default.prototype._getIconUrl;
@@ -89,16 +71,15 @@ function FitBoundsButton({
   return null;
 }
 
-function FocusStop({
-  stop,
-}: {
-  stop: Stop | null;
-}) {
+function FocusStop({ stop }: { stop: Stop | null }) {
   const map = useMap();
 
   useEffect(() => {
     if (!stop || typeof stop.lat !== "number" || typeof stop.lng !== "number") return;
-    map.flyTo([stop.lat, stop.lng], Math.max(map.getZoom(), 11), { animate: true, duration: 0.8 });
+    map.flyTo([stop.lat, stop.lng], Math.max(map.getZoom(), 11), {
+      animate: true,
+      duration: 0.8,
+    });
   }, [map, stop]);
 
   return null;
@@ -125,8 +106,6 @@ function makeNumberedDivIcon(n: number, active = false) {
 }
 
 export default function LeafletMapClient({ tripId }: Props) {
-  const keyStops = useMemo(() => `wandersplit:stops:${tripId}`, [tripId]);
-
   const [stops, setStops] = useState<Stop[]>([]);
   const [query, setQuery] = useState("");
   const [sheetOpen, setSheetOpen] = useState(true);
@@ -134,46 +113,36 @@ export default function LeafletMapClient({ tripId }: Props) {
   const [fitTick, setFitTick] = useState(0);
   const [focusStop, setFocusStop] = useState<Stop | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [loading, setLoading] = useState(true);
   const mapRef = useRef<LeafletMap | null>(null);
+
+  async function refreshStops() {
+    setLoading(true);
+    const arr = await readStopsFromDB(tripId);
+    const normalized = (Array.isArray(arr) ? arr : [])
+      .map(mapDbStopToStop)
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    setStops(normalized);
+    setLoading(false);
+  }
 
   useEffect(() => {
     fixLeafletIcons();
   }, []);
 
   useEffect(() => {
-    const arr = safeRead<Stop[]>(keyStops, []);
-    const normalized = (Array.isArray(arr) ? arr : [])
-      .slice()
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    setStops(normalized);
-  }, [keyStops]);
+    refreshStops();
+  }, [tripId]);
 
-  function persist(next: Stop[]) {
-    const normalized = next
-      .slice()
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      .map((s, i) => ({ ...s, sort_order: i + 1 }));
-    setStops(normalized);
-    safeWrite(keyStops, normalized);
-  }
-
-  function removeStop(id: string) {
-    persist(stops.filter((s) => s.id !== id));
-    if (selectedId === id) setSelectedId(null);
-  }
-
-  function moveStop(id: string, dir: -1 | 1) {
-    const idx = stops.findIndex((s) => s.id === id);
-    if (idx < 0) return;
-    const j = idx + dir;
-    if (j < 0 || j >= stops.length) return;
-
-    const copy = stops.slice();
-    const a = copy[idx];
-    const b = copy[j];
-    copy[idx] = { ...b };
-    copy[j] = { ...a };
-    persist(copy);
+  async function removeStop(id: string) {
+    try {
+      await deleteStopFromDB(id);
+      setStops((prev) => prev.filter((s) => s.id !== id));
+      if (selectedId === id) setSelectedId(null);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   const geocodedStops = useMemo(
@@ -200,10 +169,8 @@ export default function LeafletMapClient({ tripId }: Props) {
   );
 
   const center: LatLngExpression = useMemo(() => {
-    if (geocodedStops.length) {
-      return [geocodedStops[0].lat as number, geocodedStops[0].lng as number];
-    }
-    return [50.8503, 4.3517]; // Brussels fallback
+    if (geocodedStops.length) return [geocodedStops[0].lat as number, geocodedStops[0].lng as number];
+    return [50.8503, 4.3517];
   }, [geocodedStops]);
 
   function focusOnStop(s: Stop) {
@@ -220,18 +187,18 @@ export default function LeafletMapClient({ tripId }: Props) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        mapRef.current?.flyTo([latitude, longitude], 13, { animate: true, duration: 0.8 });
+        mapRef.current?.flyTo([latitude, longitude], 13, {
+          animate: true,
+          duration: 0.8,
+        });
       },
-      () => {
-        // cicho ignorujemy błąd uprawnień
-      },
+      () => {},
       { enableHighAccuracy: true, timeout: 6000 }
     );
   }
 
   return (
     <div className="relative min-h-dvh bg-slate-100 pb-0">
-      {/* mapa jako tło ekranu */}
       <div className="absolute inset-0">
         <MapContainer
           center={center}
@@ -258,275 +225,127 @@ export default function LeafletMapClient({ tripId }: Props) {
             const hasCoords = typeof s.lat === "number" && typeof s.lng === "number";
             if (!hasCoords) return null;
 
-            const active = selectedId === s.id;
             return (
               <Marker
                 key={s.id}
                 position={[s.lat as number, s.lng as number]}
-                icon={makeNumberedDivIcon(i + 1, active)}
+                icon={makeNumberedDivIcon(i + 1, selectedId === s.id)}
                 eventHandlers={{
-                  click: () => setSelectedId(s.id),
+                  click: () => focusOnStop(s),
                 }}
               >
                 <Popup>
-                  <div className="min-w-[160px]">
-                    <div className="font-semibold">{s.name}</div>
-                    <div className="text-xs text-slate-500">
-                      {s.countryCode || "—"} • stop #{i + 1}
-                    </div>
-                  </div>
+                  <div className="font-semibold">{s.name}</div>
                 </Popup>
               </Marker>
             );
           })}
 
-          {points.length > 0 ? <FitBoundsButton points={points} trigger={fitTick} /> : null}
-          <FocusStop stop={focusStop} />
+          {mapReady && points.length ? <FitBoundsButton points={points} trigger={fitTick} /> : null}
+          {mapReady ? <FocusStop stop={focusStop} /> : null}
         </MapContainer>
       </div>
 
-      {/* gradient dla czytelności top bara */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] h-28 bg-gradient-to-b from-black/25 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] p-4">
+        <div className="pointer-events-auto mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-3xl border border-white/70 bg-white/90 p-3 shadow-lg backdrop-blur">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              WanderSplit
+            </div>
+            <div className="text-lg font-bold text-slate-900">Mapa tripa</div>
+          </div>
 
-      {/* Top bar (Google Maps-like) */}
-      <div className="absolute inset-x-0 top-0 z-[600] px-4 pt-[max(12px,env(safe-area-inset-top))]">
-        <div className="rounded-2xl bg-white/95 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5 backdrop-blur">
           <div className="flex items-center gap-2">
+            <button
+              onClick={fitRoute}
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+            >
+              Dopasuj trasę
+            </button>
+
+            <button
+              onClick={goToMyLocation}
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+            >
+              <LocateFixed className="h-4 w-4" />
+            </button>
+
             <Link
               href={`/trips/${tripId}`}
-              className="grid h-10 w-10 place-items-center rounded-xl text-slate-700 hover:bg-slate-100"
-              aria-label="Wróć do tripa"
-              title="Wróć"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
             >
-              <X size={18} />
-            </Link>
-
-            <div className="relative flex-1">
-              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Szukaj przystanku…"
-                className="h-10 w-full rounded-xl bg-slate-100 pl-9 pr-9 text-sm text-slate-900 outline-none ring-1 ring-slate-200 focus:bg-white"
-              />
-              {query ? (
-                <button
-                  onClick={() => setQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-500 hover:bg-slate-200"
-                  aria-label="Wyczyść"
-                  title="Wyczyść"
-                >
-                  <X size={14} />
-                </button>
-              ) : null}
-            </div>
-
-            <Link
-              href={`/trips/${tripId}/stops`}
-              className="grid h-10 w-10 place-items-center rounded-xl text-slate-700 hover:bg-slate-100"
-              aria-label="Dodaj / edytuj stopy"
-              title="Stopy"
-            >
-              <Plus size={18} />
+              Powrót
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Floating buttons */}
-      <div className="absolute right-4 top-24 z-[650] flex flex-col gap-2">
-        <button
-          onClick={goToMyLocation}
-          className="grid h-11 w-11 place-items-center rounded-2xl bg-white/95 text-slate-800 shadow-[0_8px_24px_rgba(0,0,0,0.14)] ring-1 ring-black/5 backdrop-blur hover:bg-white"
-          title="Moja lokalizacja"
-          aria-label="Moja lokalizacja"
-        >
-          <LocateFixed size={18} />
-        </button>
-
-        <button
-          onClick={fitRoute}
-          disabled={!points.length}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] p-4">
+        <div
           className={cx(
-            "grid h-11 w-11 place-items-center rounded-2xl bg-white/95 text-slate-800 shadow-[0_8px_24px_rgba(0,0,0,0.14)] ring-1 ring-black/5 backdrop-blur hover:bg-white",
-            !points.length && "opacity-50"
+            "pointer-events-auto mx-auto max-w-5xl overflow-hidden rounded-[28px] border border-white/70 bg-white/95 shadow-[0_-12px_40px_rgba(15,23,42,.16)] backdrop-blur transition-all",
+            sheetOpen ? "max-h-[48vh]" : "max-h-16"
           )}
-          title="Dopasuj trasę"
-          aria-label="Dopasuj trasę"
         >
-          <Navigation size={18} />
-        </button>
-      </div>
+          <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
+            <button
+              onClick={() => setSheetOpen((v) => !v)}
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+            >
+              {sheetOpen ? "Zwiń" : "Rozwiń"}
+            </button>
 
-      {/* Bottom sheet */}
-      <div
-        className={cx(
-          "absolute inset-x-0 bottom-0 z-[700] mx-auto w-full max-w-[430px] transition-transform duration-300",
-          sheetOpen ? "translate-y-0" : "translate-y-[calc(100%-56px)]"
-        )}
-      >
-        <div className="rounded-t-[28px] bg-white/96 shadow-[0_-16px_50px_rgba(0,0,0,0.20)] ring-1 ring-black/5 backdrop-blur">
-          {/* handle + header */}
-          <div className="px-4 pt-3">
-            <div className="mx-auto h-1.5 w-10 rounded-full bg-slate-300" />
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-extrabold text-slate-900">Trasa</div>
-                <div className="mt-0.5 text-xs text-slate-500">
-                  {stops.length} stopów • {geocodedStops.length} z lokalizacją
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={fitRoute}
-                  disabled={!points.length}
-                  className={cx(
-                    "rounded-xl px-3 py-2 text-xs font-semibold ring-1",
-                    points.length
-                      ? "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
-                      : "bg-slate-100 text-slate-400 ring-slate-200"
-                  )}
-                >
-                  Dopasuj
-                </button>
-
-                <button
-                  onClick={() => setSheetOpen((v) => !v)}
-                  className="grid h-9 w-9 place-items-center rounded-xl text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                  aria-label={sheetOpen ? "Zwiń panel" : "Rozwiń panel"}
-                  title={sheetOpen ? "Zwiń panel" : "Rozwiń panel"}
-                >
-                  {sheetOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                </button>
-              </div>
-            </div>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Szukaj przystanku"
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+            />
           </div>
 
-          {/* quick summary route preview */}
-          <div className="mt-3 px-4">
-            <div className="rounded-2xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
-              <div className="text-xs text-slate-500">Podgląd trasy</div>
-              <div className="mt-0.5 text-sm font-semibold text-slate-900 truncate">
-                {stops.length === 0
-                  ? "Dodaj przystanki w zakładce Stops"
-                  : stops
-                      .slice(0, 3)
-                      .map((s) => s.name)
-                      .join(" → ") + (stops.length > 3 ? ` +${stops.length - 3}` : "")}
-              </div>
-            </div>
-          </div>
-
-          {/* list */}
-          <div className="mt-3 max-h-[46dvh] overflow-y-auto px-4 pb-[max(14px,env(safe-area-inset-bottom))]">
-            {filteredStops.length === 0 ? (
-              <div className="rounded-2xl bg-white px-4 py-4 text-sm text-slate-600 ring-1 ring-slate-200">
-                {stops.length === 0
-                  ? "Brak przystanków. Dodaj je w Stops."
-                  : "Brak wyników wyszukiwania."}
-              </div>
+          <div className="max-h-[38vh] overflow-auto p-3">
+            {loading ? (
+              <div className="p-3 text-sm text-slate-500">Ładowanie…</div>
+            ) : filteredStops.length === 0 ? (
+              <div className="p-3 text-sm text-slate-500">Brak przystanków.</div>
             ) : (
               <div className="space-y-2">
-                {filteredStops.map((s) => {
-                  const idx = stops.findIndex((x) => x.id === s.id);
-                  const active = selectedId === s.id;
+                {filteredStops.map((s, i) => {
                   const hasCoords = typeof s.lat === "number" && typeof s.lng === "number";
-
                   return (
                     <div
                       key={s.id}
                       className={cx(
-                        "rounded-2xl px-3 py-3 ring-1 transition",
-                        active
-                          ? "bg-indigo-50/70 ring-indigo-200"
-                          : "bg-white/90 ring-slate-200 hover:bg-slate-50"
+                        "flex items-center justify-between gap-3 rounded-2xl border p-3",
+                        selectedId === s.id
+                          ? "border-indigo-200 bg-indigo-50"
+                          : "border-slate-200 bg-white"
                       )}
                     >
-                      <div className="flex items-start gap-3">
-                        <button
-                          onClick={() => focusOnStop(s)}
-                          disabled={!hasCoords}
-                          className={cx(
-                            "grid h-8 w-8 shrink-0 place-items-center rounded-xl text-xs font-bold ring-1",
-                            active
-                              ? "bg-indigo-600 text-white ring-indigo-600"
-                              : "bg-slate-900 text-white ring-slate-900",
-                            !hasCoords && "opacity-40"
-                          )}
-                          title={hasCoords ? "Pokaż na mapie" : "Brak współrzędnych"}
-                          aria-label={hasCoords ? "Pokaż na mapie" : "Brak współrzędnych"}
-                        >
-                          {idx + 1}
-                        </button>
-
-                        <div className="min-w-0 flex-1">
-                          <button
-                            onClick={() => focusOnStop(s)}
-                            disabled={!hasCoords}
-                            className="block text-left w-full"
-                          >
-                            <div className="truncate text-sm font-extrabold text-slate-900">
-                              {s.name}
-                            </div>
-                            <div className="mt-0.5 text-xs text-slate-500">
-                              {s.countryCode || "—"} {hasCoords ? "• gotowe na mapie" : "• brak geocode"}
-                            </div>
-                          </button>
+                      <button
+                        onClick={() => focusOnStop(s)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="font-semibold text-slate-900">{i + 1}. {s.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {hasCoords ? "Ma współrzędne" : "Brak współrzędnych — nie pokaże się na mapie"}
                         </div>
+                      </button>
 
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => moveStop(s.id, -1)}
-                            className="grid h-8 w-8 place-items-center rounded-xl text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                            title="Przesuń wyżej"
-                            aria-label="Przesuń wyżej"
-                          >
-                            <ArrowUp size={14} />
-                          </button>
-                          <button
-                            onClick={() => moveStop(s.id, 1)}
-                            className="grid h-8 w-8 place-items-center rounded-xl text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                            title="Przesuń niżej"
-                            aria-label="Przesuń niżej"
-                          >
-                            <ArrowDown size={14} />
-                          </button>
-                          <button
-                            onClick={() => removeStop(s.id)}
-                            className="grid h-8 w-8 place-items-center rounded-xl text-slate-600 ring-1 ring-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:ring-rose-200"
-                            title="Usuń"
-                            aria-label="Usuń"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
+                      <button
+                        onClick={() => removeStop(s.id)}
+                        className="rounded-xl border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
+                      >
+                        Usuń
+                      </button>
                     </div>
                   );
                 })}
-
-                <div className="pt-1">
-                  <Link
-                    href={`/trips/${tripId}/stops`}
-                    className="flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
-                  >
-                    <Plus size={16} />
-                    Dodaj / edytuj przystanki
-                  </Link>
-                </div>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Gdy brak mapy / punktów — mikrohint */}
-      {mapReady && stops.length > 0 && geocodedStops.length === 0 ? (
-        <div className="absolute inset-x-4 bottom-[calc(56px+env(safe-area-inset-bottom)+14px)] z-[650] mx-auto max-w-[390px] rounded-2xl bg-amber-50/95 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200 backdrop-blur">
-          Przystanki są dodane, ale nie mają współrzędnych. Wejdź w Stops i dodaj miejsca z geokodowaniem.
-        </div>
-      ) : null}
     </div>
   );
 }
