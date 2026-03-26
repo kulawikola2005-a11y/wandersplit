@@ -24,6 +24,32 @@ export async function getCurrentUserId() {
   return data.user.id;
 }
 
+function readStopsFromLocalStorage(tripId: string): TripStop[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = localStorage.getItem(`wandersplit:stops:${tripId}`);
+    if (!raw) return [];
+
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+
+    return arr.map((item: any, index: number) => ({
+      id: item.id ?? uid(),
+      trip_id: tripId,
+      user_id: item.user_id ?? "",
+      name: item.name ?? "",
+      country_code: item.country_code ?? null,
+      lat: item.lat ?? null,
+      lng: item.lng ?? null,
+      sort_order: item.sort_order ?? index + 1,
+      created_at: item.created_at ?? new Date().toISOString(),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function readStopsFromDB(tripId: string): Promise<TripStop[]> {
   const { data, error } = await supabase
     .from("trip_stops")
@@ -31,12 +57,15 @@ export async function readStopsFromDB(tripId: string): Promise<TripStop[]> {
     .eq("trip_id", tripId)
     .order("sort_order", { ascending: true });
 
-  if (error) {
-    console.error("readStopsFromDB error:", error);
-    return [];
+  if (!error && data && data.length > 0) {
+    return data;
   }
 
-  return data ?? [];
+  if (error) {
+    console.error("readStopsFromDB error:", error);
+  }
+
+  return readStopsFromLocalStorage(tripId);
 }
 
 export async function insertStopToDB(

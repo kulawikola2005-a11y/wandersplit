@@ -102,60 +102,60 @@ export default function TripStopsPage() {
   }
 
   return (
-    <div className="px-3 pb-10 pt-6">
-      <div className="mx-auto max-w-2xl space-y-6">
+    <div className="px-3 pb-10 pt-5">
+      <div className="mx-auto max-w-2xl space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Przystanki</h1>
+          <h1 className="text-xl font-bold text-slate-900">Przystanki</h1>
 
           <Link
             href={`/trips/${tripId}`}
-            className="border px-3 py-2 rounded-xl"
+            className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
           >
             Powrót
           </Link>
         </div>
 
         {!editable && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
             Masz dostęp tylko do podglądu. Edycja jest wyłączona dla roli viewer.
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex gap-2">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Rome, Paris, Tokyo..."
-              className="border px-3 py-2 w-full rounded-xl"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
               disabled={!editable || busy}
             />
             <button
               onClick={addStop}
               disabled={!editable || busy}
-              className="border px-3 py-2 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Dodaj
             </button>
           </div>
 
-          {msg && <div className="text-red-500">{msg}</div>}
+          {msg && <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{msg}</div>}
 
           {loading ? (
             <div>Ładowanie…</div>
           ) : items.length === 0 ? (
             <div>Brak przystanków</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {items.map((s) => (
                 <div
                   key={s.id}
-                  className="flex justify-between border p-3 rounded-xl"
+                  className="flex items-start justify-between rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
                 >
                   <div>
                     {s.name}
                     {s.lat != null && s.lng != null && (
-                      <div className="text-xs text-gray-400">
+                      <div className="mt-1 text-xs text-slate-400">
                         {s.lat}, {s.lng}
                       </div>
                     )}
@@ -164,7 +164,7 @@ export default function TripStopsPage() {
                   <button
                     onClick={() => removeStop(s.id)}
                     disabled={!editable || busy}
-                    className="disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Usuń
                   </button>
