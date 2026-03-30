@@ -138,6 +138,13 @@ export async function listChecklistItems(tripId: string) {
     return second.data as ChecklistItem[];
   }
 
+  if (first.error) {
+    console.error("checklist_items read error:", first.error);
+  }
+  if (second.error) {
+    console.error("trip_checklist_items read error:", second.error);
+  }
+
   return readChecklistFromLocalStorage(tripId);
 }
 

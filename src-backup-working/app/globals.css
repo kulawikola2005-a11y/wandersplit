@@ -134,36 +134,3 @@ body {
 
 .ws-pirates h1, .ws-pirates h2, .ws-pirates h3 { letter-spacing: -0.02em; }
 
-
-/* 🔥 GLOBAL POLISH */
-
-.ws-card {
-  border-radius: 28px;
-  background: white;
-  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
-  transition: all 0.2s ease;
-}
-
-.ws-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
-}
-
-.ws-btn {
-  border-radius: 18px;
-  background: #0f172a;
-  color: white;
-  transition: all 0.2s ease;
-}
-
-.ws-btn:hover {
-  transform: scale(1.03);
-  background: #020617;
-}
-
-.ws-input {
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-}
-
