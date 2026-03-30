@@ -76,7 +76,17 @@ export default function Page() {
   }, [tripId]);
 
   if (!trip) {
-    return <div className="p-6">Brak tripa</div>;
+    return (
+      <div className="px-3 pb-10 pt-5 space-y-4">
+        <div className="h-44 w-full animate-pulse rounded-3xl bg-slate-200" />
+        <div className="space-y-3">
+          <div className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+          <div className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+          <div className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+          <div className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+        </div>
+      </div>
+    );
   }
 
   return (
