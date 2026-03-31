@@ -97,6 +97,39 @@ function cx(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
 }
 
+
+function createDemoTrip() {
+  const id = crypto.randomUUID();
+
+  const trip = {
+    id,
+    title: "Tokio 🇯🇵 Demo",
+    start_date: "2026-05-10",
+    end_date: "2026-05-20",
+    base_currency: "JPY",
+  };
+
+  localStorage.setItem("wandersplit:trips", JSON.stringify([trip]));
+
+  localStorage.setItem(`wandersplit:checklist:${id}`, JSON.stringify([
+    { id: "1", text: "Paszport", done: true },
+    { id: "2", text: "Ładowarka", done: false },
+    { id: "3", text: "Rezerwacja hotelu", done: true }
+  ]));
+
+  localStorage.setItem(`wandersplit:stops:${id}`, JSON.stringify([
+    { id: "1", name: "Tokyo", lat: 35.6762, lng: 139.6503 },
+    { id: "2", name: "Kyoto", lat: 35.0116, lng: 135.7681 }
+  ]));
+
+  localStorage.setItem(`wandersplit:budget:${id}`, JSON.stringify([
+    { id: "1", title: "Hotel", amount: 1200 },
+    { id: "2", title: "Jedzenie", amount: 300 }
+  ]));
+
+  window.location.href = `/trips/${id}`;
+}
+
 export default function TripsPage() {
   const [checking, setChecking] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -228,7 +261,16 @@ const [coverUrl, setCoverUrl] = useState("");
   }, [title, startDate, endDate, busy]);
 
   return (
-    <div className="px-4 pb-10 pt-6">
+    <>
+      <div className="flex gap-2 p-3">
+<button 
+  onClick={createDemoTrip}
+  className="ws-btn px-4 py-2"
+>
+  Demo Trip
+</button>
+      </div>
+      <div className="px-4 pb-10 pt-6">
       <PageHeader
         eyebrow="WanderSplit"
         title="Twoje podróże"
@@ -386,5 +428,6 @@ const [coverUrl, setCoverUrl] = useState("");
         </Section>
       </div>
     </div>
+    </>
   );
 }

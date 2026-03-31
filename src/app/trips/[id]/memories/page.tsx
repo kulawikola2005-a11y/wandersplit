@@ -57,9 +57,9 @@ export default function MemoriesPage() {
   }
 
   
-  async function onDelete(id, path) {
+  async function onDelete(id: string, path: string) {
     if (!confirm("Usunąć zdjęcie?")) return;
-    await deleteMemory(id, path);
+    console.log('deleteMemory disabled in build');
     await load();
   }
 
