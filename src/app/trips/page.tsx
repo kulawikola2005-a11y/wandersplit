@@ -10,6 +10,7 @@ import PageHeader from "@/components/app/PageHeader";
 import Section from "@/components/app/Section";
 import EmptyState from "@/components/app/EmptyState";
 import SkeletonBlock from "@/components/app/SkeletonBlock";
+import { isMobile } from "@/lib/mobile/isMobile";
 
 type Trip = {
   id: string;
@@ -186,6 +187,12 @@ const [coverUrl, setCoverUrl] = useState("");
 
   useEffect(() => {
     (async () => {
+      if (isMobile) {
+        const stored = localStorage.getItem("wandersplit:trips");
+        if (stored) setTrips(JSON.parse(stored));
+        setChecking(false);
+        return;
+      }
       setChecking(true);
       setMsg(null);
 
