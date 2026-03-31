@@ -23,7 +23,7 @@ type Trip = {
 
 function uid() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
+    ? ((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random())
     : String(Math.random()).slice(2);
 }
 
@@ -99,7 +99,7 @@ function cx(...v: Array<string | false | null | undefined>) {
 
 
 function createDemoTrip() {
-  const id = crypto.randomUUID();
+  const id = ((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random());
 
   const trip = {
     id,
@@ -147,10 +147,41 @@ const [coverUrl, setCoverUrl] = useState("");
   const [currency, setCurrency] = useState("EUR");
 
   useEffect(() => {
-    const t = new Date();
-    setTitle("");
-    setStartDate(ymd(t));
-    setEndDate(ymd(addDays(t, 3)));
+    setChecking(true);
+    setMsg(null);
+
+    let localTrips = JSON.parse(localStorage.getItem("wandersplit:trips") || "[]");
+
+    if (!localTrips.length) {
+      const id = ((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random());
+      localTrips = [{
+        id,
+        title: "Tokio 🇯🇵 Demo",
+        start_date: "2026-05-10",
+        end_date: "2026-05-20",
+        base_currency: "JPY",
+        created_at: new Date().toISOString(),
+      }];
+
+      localStorage.setItem("wandersplit:trips", JSON.stringify(localTrips));
+      localStorage.setItem(`wandersplit:checklist:${id}`, JSON.stringify([
+        { id: "1", text: "Paszport", done: true },
+        { id: "2", text: "Ładowarka", done: false },
+        { id: "3", text: "Rezerwacja hotelu", done: true }
+      ]));
+      localStorage.setItem(`wandersplit:stops:${id}`, JSON.stringify([
+        { id: "1", name: "Tokyo", lat: 35.6762, lng: 139.6503 },
+        { id: "2", name: "Kyoto", lat: 35.0116, lng: 135.7681 }
+      ]));
+      localStorage.setItem(`wandersplit:budget:${id}`, JSON.stringify([
+        { id: "1", title: "Hotel", amount: 1200 },
+        { id: "2", title: "Jedzenie", amount: 300 }
+      ]));
+    }
+
+    setUserEmail("Tryb lokalny");
+    setTrips(localTrips);
+    setChecking(false);
   }, []);
 
   useEffect(() => {
@@ -158,30 +189,39 @@ const [coverUrl, setCoverUrl] = useState("");
       setChecking(true);
       setMsg(null);
 
-      const { data: u } = await supabase.auth.getUser();
-      if (!u?.user) {
-        window.location.href = "/login";
-        return;
-      }
+      try {
+        const { data: u } = await supabase.auth.getUser();
 
-      setUserEmail(u.user.email ?? null);
+        if (u?.user) {
+          setUserEmail(u.user.email ?? null);
 
-      const loadedTrips = await readTripsFromDB();
-      setTrips(loadedTrips);
+          const loadedTrips = await readTripsFromDB();
+          if (loadedTrips.length) {
+            setTrips(loadedTrips);
 
-      const map: Record<string, string> = {};
-      for (const t of loadedTrips) {
-        if (t.cover_path) {
-          try {
-            const url = await getTripCoverUrl(t.cover_path);
-            if (url) map[t.id] = url;
-          } catch (e) {
-            console.error(e);
+            const map: Record<string, string> = {};
+            for (const t of loadedTrips) {
+              if (t.cover_path) {
+                try {
+                  const url = await getTripCoverUrl(t.cover_path);
+                  if (url) map[t.id] = url;
+                } catch (e) {
+                  console.error(e);
+                }
+              }
+            }
+            setCoverUrls(map);
+            setChecking(false);
+            return;
           }
         }
+      } catch (e) {
+        console.error("mobile fallback auth/db error:", e);
       }
-      setCoverUrls(map);
 
+      const localTrips = JSON.parse(localStorage.getItem("wandersplit:trips") || "[]");
+      setTrips(localTrips);
+      setUserEmail("Tryb lokalny");
       setChecking(false);
     })();
   }, []);
@@ -189,8 +229,8 @@ const [coverUrl, setCoverUrl] = useState("");
   async function logout() {
     setBusy(true);
     try {
-      await supabase.auth.signOut();
-      window.location.href = "/login";
+      localStorage.removeItem("wandersplit:trips");
+      window.location.reload();
     } finally {
       setBusy(false);
     }
@@ -221,38 +261,53 @@ const [coverUrl, setCoverUrl] = useState("");
       return;
     }
 
-    const { error } = await supabase.from("trips").insert({
+    try {
+      const { error } = await supabase.from("trips").insert({
+        id,
+        user_id: u.user.id,
+        title: t,
+        start_date: startDate,
+        end_date: endDate,
+        base_currency: currency || "EUR",
+        created_at: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
+      const { error: memberError } = await supabase.from("trip_members").insert({
+        trip_id: id,
+        user_id: u.user.id,
+        role: "owner",
+      });
+
+      if (memberError) throw memberError;
+
+      if (demo) seedDemo(id);
+      else seedEmpty(id);
+
+      setTrips(await readTripsFromDB());
+      window.location.href = `/trips/${id}`;
+      return;
+    } catch (e) {
+      console.error("createTrip mobile fallback error:", e);
+    }
+
+    const localTrips = JSON.parse(localStorage.getItem("wandersplit:trips") || "[]");
+    const localTrip = {
       id,
-      user_id: u.user.id,
       title: t,
       start_date: startDate,
       end_date: endDate,
       base_currency: currency || "EUR",
       created_at: new Date().toISOString(),
-    });
+    };
 
-    if (error) {
-      console.error("insert trip error:", error);
-      setMsg("Nie udało się zapisać tripa.");
-      return;
-    }
-
-    const { error: memberError } = await supabase.from("trip_members").insert({
-      trip_id: id,
-      user_id: u.user.id,
-      role: "owner",
-    });
-
-    if (memberError) {
-      console.error("insert trip_members error:", memberError);
-      setMsg("Trip zapisany, ale nie udało się dodać ownera do uczestników.");
-      return;
-    }
+    localStorage.setItem("wandersplit:trips", JSON.stringify([localTrip, ...localTrips]));
 
     if (demo) seedDemo(id);
     else seedEmpty(id);
 
-    setTrips(await readTripsFromDB());
+    setTrips(JSON.parse(localStorage.getItem("wandersplit:trips") || "[]"));
     window.location.href = `/trips/${id}`;
   }
 

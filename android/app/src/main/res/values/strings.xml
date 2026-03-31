@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WanderSplit</string>
+    <string name="title_activity_main">WanderSplit</string>
+    <string name="package_name">com.wandersplit.app</string>
+    <string name="custom_url_scheme">com.wandersplit.app</string>
+</resources>

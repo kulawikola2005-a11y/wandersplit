@@ -156,3 +156,10 @@ body {
   background: #f8fafc;
 }
 
+
+/* 🔥 ANDROID SCROLL FIX */
+html, body {
+  height: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
