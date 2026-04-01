@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { isMobile } from "@/lib/mobile/isMobile";
 import { useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
@@ -14,6 +15,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function signUp() {
+  if (isMobile) {
+    window.location.href = "/trips";
+    return;
+  }
+
     setLoading(true);
     setMsg(null);
     const { error } = await supabase.auth.signUp({ email, password });
@@ -23,6 +29,11 @@ export default function LoginPage() {
   }
 
   async function signIn() {
+  if (isMobile) {
+    window.location.href = "/trips";
+    return;
+  }
+
     setLoading(true);
     setMsg(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
