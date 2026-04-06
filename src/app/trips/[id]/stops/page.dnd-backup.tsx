@@ -4,23 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { MapPin, Plus, Trash2, Route, GripVertical } from "lucide-react";
-import {
-  DndContext,
-  PointerSensor,
-  TouchSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { MapPin, Plus, Trash2, Route } from "lucide-react";
 import BottomNav from "@/components/trip/BottomNav";
 import { geocodeCity } from "@/lib/maps/geocode";
 
@@ -43,80 +27,6 @@ function uid() {
     : String(Math.random()).slice(2);
 }
 
-function SortableStopItem({
-  stop,
-  index,
-  busy,
-  onRemove,
-}: {
-  stop: LocalStop;
-  index: number;
-  busy: boolean;
-  onRemove: (id: string) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: stop.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`flex touch-none items-start justify-between rounded-[24px] border border-black/5 bg-white p-3 ${
-        isDragging ? "shadow-[0_18px_40px_rgba(2,6,23,0.12)]" : ""
-      }`}
-    >
-      <div className="flex min-w-0 gap-3">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-500"
-          aria-hidden="true"
-        >
-          <GripVertical size={18} />
-        </div>
-
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-700">
-          {index + 1}
-        </div>
-
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-neutral-900">
-            {stop.name}
-          </div>
-          {stop.lat != null && stop.lng != null ? (
-            <div className="mt-1 text-xs text-neutral-400">
-              {stop.lat}, {stop.lng}
-            </div>
-          ) : (
-            <div className="mt-1 text-xs text-neutral-400">
-              Brak współrzędnych
-            </div>
-          )}
-        </div>
-      </div>
-
-      <button
-        onClick={() => onRemove(stop.id)}
-        disabled={busy}
-        className="ml-3 shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 disabled:opacity-50"
-      >
-        <Trash2 size={15} />
-      </button>
-    </div>
-  );
-}
-
 export default function TripStopsPage() {
   const params = useParams();
   const tripId = String(params?.id ?? "");
@@ -129,19 +39,7 @@ export default function TripStopsPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 4,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 120,
-        tolerance: 8,
-      },
-    })
-  );
+  const editable = true;
 
   const stopsWithCoords = useMemo(
     () => items.filter((item) => item.lat != null && item.lng != null).length,
@@ -241,24 +139,6 @@ export default function TripStopsPage() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = items.findIndex((item) => item.id === active.id);
-    const newIndex = items.findIndex((item) => item.id === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const reordered = arrayMove(items, oldIndex, newIndex).map((item, index) => ({
-      ...item,
-      sort_order: index + 1,
-    }));
-
-    saveLocal(reordered);
   }
 
   return (
@@ -366,38 +246,46 @@ export default function TripStopsPage() {
             </div>
           ) : (
             <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-neutral-900">
-                  Lista przystanków
-                </div>
-                <div className="text-xs text-neutral-400">
-                  Przytrzymaj ikonę i przeciągnij
-                </div>
+              <div className="text-sm font-semibold text-neutral-900">
+                Lista przystanków
               </div>
 
-              <div className="mt-4">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={items.map((item) => item.id)}
-                    strategy={verticalListSortingStrategy}
+              <div className="mt-4 space-y-3">
+                {items.map((s, index) => (
+                  <div
+                    key={s.id}
+                    className="flex items-start justify-between rounded-[24px] border border-black/5 bg-white p-3"
                   >
-                    <div className="space-y-3">
-                      {items.map((s, index) => (
-                        <SortableStopItem
-                          key={s.id}
-                          stop={s}
-                          index={index}
-                          busy={busy}
-                          onRemove={removeStop}
-                        />
-                      ))}
+                    <div className="flex min-w-0 gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-700">
+                        {index + 1}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-neutral-900">
+                          {s.name}
+                        </div>
+                        {s.lat != null && s.lng != null ? (
+                          <div className="mt-1 text-xs text-neutral-400">
+                            {s.lat}, {s.lng}
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-xs text-neutral-400">
+                            Brak współrzędnych
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </SortableContext>
-                </DndContext>
+
+                    <button
+                      onClick={() => removeStop(s.id)}
+                      disabled={busy}
+                      className="ml-3 shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 disabled:opacity-50"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
               </div>
             </section>
           )}

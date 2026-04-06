@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'WanderSplit',
   webDir: 'out',
   server: {
-    url: 'http://192.168.2.166:3000/trips',
+    url: 'http://10.0.2.2:3000',
     cleartext: true,
   },
 };

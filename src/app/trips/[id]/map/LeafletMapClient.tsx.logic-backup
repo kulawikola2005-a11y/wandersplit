@@ -28,8 +28,6 @@ type Props = {
   tripId: string;
 };
 
-type RouteMode = "smart" | "direct" | "mixed";
-
 function cx(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
 }
@@ -107,29 +105,6 @@ function makeNumberedDivIcon(n: number, active = false) {
   });
 }
 
-function haversineKm(a: [number, number], b: [number, number]) {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
-
-  const lat1 = a[0];
-  const lng1 = a[1];
-  const lat2 = b[0];
-  const lng2 = b[1];
-
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-
-  const q =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1 - q));
-  return R * c;
-}
-
 export default function LeafletMapClient({ tripId }: Props) {
   const [stops, setStops] = useState<Stop[]>([]);
   const [query, setQuery] = useState("");
@@ -144,7 +119,6 @@ export default function LeafletMapClient({ tripId }: Props) {
   const [routeReady, setRouteReady] = useState(false);
   const [routeLine, setRouteLine] = useState<[number, number][]>([]);
   const [drawCount, setDrawCount] = useState(0);
-  const [routeMode, setRouteMode] = useState<RouteMode>("direct");
 
   const mapRef = useRef<LeafletMap | null>(null);
 
@@ -182,8 +156,13 @@ export default function LeafletMapClient({ tripId }: Props) {
     [stops]
   );
 
-  const markerPoints = useMemo<LatLngExpression[]>(
+  const points = useMemo<LatLngExpression[]>(
     () => geocodedStops.map((s) => [s.lat as number, s.lng as number]),
+    [geocodedStops]
+  );
+
+  const orsCoordinates = useMemo<[number, number][]>(
+    () => geocodedStops.map((s) => [s.lng as number, s.lat as number]),
     [geocodedStops]
   );
 
@@ -228,11 +207,10 @@ export default function LeafletMapClient({ tripId }: Props) {
     let cancelled = false;
 
     async function loadRoute() {
-      if (geocodedStops.length < 2) {
+      if (orsCoordinates.length < 2) {
         setRouteLine([]);
         setRouteReady(false);
         setDrawCount(0);
-        setRouteMode("direct");
         return;
       }
 
@@ -241,113 +219,46 @@ export default function LeafletMapClient({ tripId }: Props) {
         setRouteReady(false);
         setDrawCount(0);
 
-        const merged: [number, number][] = [];
-        let usedSmart = false;
-        let usedDirect = false;
+        const res = await fetch("/api/route", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            profile: "driving-car",
+            coordinates: orsCoordinates,
+          }),
+        });
 
-        for (let i = 0; i < geocodedStops.length - 1; i += 1) {
-          const start = geocodedStops[i];
-          const end = geocodedStops[i + 1];
+        const data = await res.json().catch(() => null);
 
-          const startPos = [start.lat as number, start.lng as number] as [number, number];
-          const endPos = [end.lat as number, end.lng as number] as [number, number];
-          const distanceKm = haversineKm(startPos, endPos);
-
-          if (distanceKm > 700) {
-            const directSegment: [number, number][] = [startPos, endPos];
-
-            if (merged.length === 0) {
-              merged.push(...directSegment);
-            } else {
-              merged.push(...directSegment.slice(1));
-            }
-
-            usedDirect = true;
-            continue;
-          }
-
-          try {
-            const res = await fetch("/api/route", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                profile: "driving-car",
-                coordinates: [
-                  [start.lng as number, start.lat as number],
-                  [end.lng as number, end.lat as number],
-                ],
-              }),
-            });
-
-            const data = await res.json().catch(() => null);
-
-            if (!res.ok || !data) {
-              throw new Error("Nie udało się pobrać segmentu");
-            }
-
-            const coords = data?.features?.[0]?.geometry?.coordinates;
-            if (!Array.isArray(coords)) {
-              throw new Error("Brak geometrii segmentu");
-            }
-
-            const latLngs = coords
-              .filter(
-                (coord: unknown) =>
-                  Array.isArray(coord) &&
-                  coord.length === 2 &&
-                  Number.isFinite(coord[0]) &&
-                  Number.isFinite(coord[1])
-              )
-              .map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
-
-            if (!latLngs.length) {
-              throw new Error("Pusty segment");
-            }
-
-            if (merged.length === 0) {
-              merged.push(...latLngs);
-            } else {
-              merged.push(...latLngs.slice(1));
-            }
-
-            usedSmart = true;
-          } catch (segmentError) {
-            console.warn("Full map segment fallback:", segmentError);
-
-            const directSegment: [number, number][] = [startPos, endPos];
-
-            if (merged.length === 0) {
-              merged.push(...directSegment);
-            } else {
-              merged.push(...directSegment.slice(1));
-            }
-
-            usedDirect = true;
-          }
+        if (!res.ok || !data) {
+          throw new Error("Nie udało się pobrać trasy");
         }
 
+        const coords = data?.features?.[0]?.geometry?.coordinates;
+        if (!Array.isArray(coords)) {
+          throw new Error("Brak geometrii trasy");
+        }
+
+        const latLngs = coords
+          .filter(
+            (coord: unknown) =>
+              Array.isArray(coord) &&
+              coord.length === 2 &&
+              Number.isFinite(coord[0]) &&
+              Number.isFinite(coord[1])
+          )
+          .map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
+
         if (!cancelled) {
-          setRouteLine(merged);
-
-          if (usedSmart && usedDirect) {
-            setRouteMode("mixed");
-          } else if (usedSmart) {
-            setRouteMode("smart");
-          } else {
-            setRouteMode("direct");
-          }
-
+          setRouteLine(latLngs);
           setRouteReady(true);
         }
       } catch (error) {
         console.warn("Full map route fallback:", error);
         if (!cancelled) {
-          setRouteLine(
-            geocodedStops.map((s) => [s.lat as number, s.lng as number] as [number, number])
-          );
-          setRouteMode("direct");
+          setRouteLine(geocodedStops.map((s) => [s.lat as number, s.lng as number] as [number, number]));
           setRouteReady(true);
         }
       } finally {
@@ -362,7 +273,7 @@ export default function LeafletMapClient({ tripId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [geocodedStops]);
+  }, [orsCoordinates, points]);
 
   useEffect(() => {
     if (!routeReady) return;
@@ -394,30 +305,14 @@ export default function LeafletMapClient({ tripId }: Props) {
     };
   }, [routeLine, routeReady]);
 
-  const fullVisibleLine =
-    routeLine.length >= 2
-      ? routeLine
-      : geocodedStops.map((s) => [s.lat as number, s.lng as number] as [number, number]);
+  const fullVisibleLine = routeLine.length >= 2
+    ? routeLine
+    : geocodedStops.map((s) => [s.lat as number, s.lng as number] as [number, number]);
 
   const animatedLine =
     fullVisibleLine.length >= 2
       ? fullVisibleLine.slice(0, Math.max(drawCount, 2))
       : fullVisibleLine;
-
-  const routeTopLabel = routeLoading
-    ? "Loading route…"
-    : routeMode === "mixed"
-    ? "Mixed route"
-    : routeMode === "smart"
-    ? "Smart route"
-    : "Direct line";
-
-  const routeBottomBadge =
-    routeMode === "mixed"
-      ? "Smart + direct"
-      : routeMode === "smart"
-      ? "Route calculated"
-      : "Fallback line";
 
   return (
     <div className="relative min-h-dvh bg-slate-100 pb-0">
@@ -478,7 +373,7 @@ export default function LeafletMapClient({ tripId }: Props) {
 
         {routeReady && fullVisibleLine.length >= 2 ? (
           <div className="pointer-events-none absolute bottom-28 right-4 z-[450] rounded-2xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-medium text-neutral-600 shadow-lg backdrop-blur">
-            {routeBottomBadge}
+            {routeLine.length >= 2 ? "Smart route" : "Fallback line"}
           </div>
         ) : null}
       </div>
@@ -493,10 +388,6 @@ export default function LeafletMapClient({ tripId }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="hidden rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 shadow-sm sm:block">
-              {routeTopLabel}
-            </div>
-
             <button
               onClick={fitRoute}
               className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"

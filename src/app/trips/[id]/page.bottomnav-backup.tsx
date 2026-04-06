@@ -19,7 +19,6 @@ import TripHeroCard from "@/components/trip/TripHeroCard";
 import TripQuickActions from "@/components/trip/TripQuickActions";
 import TripStatsRow from "@/components/trip/TripStatsRow";
 import SectionCard from "@/components/trip/SectionCard";
-import BottomNav from "@/components/trip/BottomNav";
 
 type Trip = {
   id: string;
@@ -597,7 +596,6 @@ export default function TripHomePage() {
           </div>
         )}
       </div>
-      <BottomNav tripId={tripId} />
     </PageTransition>
   );
 }

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Trash2, Wallet, Users, Receipt, ArrowRightLeft } from "lucide-react";
 import TripHeroPro from "@/components/trip/TripHeroPro";
-import BottomNav from "@/components/trip/BottomNav";
 import { cx } from "@/components/ui/pro";
 import { getMyTripRole, canEditTrip, type TripRole } from "@/lib/trips/roles";
 
@@ -63,7 +62,6 @@ function BudgetInner({ tripId }: { tripId: string }) {
   const [paidBy, setPaidBy] = useState("");
   const [splitAmong, setSplitAmong] = useState<string[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"expenses" | "balances" | "settlements">("expenses");
   const [myRole, setMyRole] = useState<TripRole>("viewer");
 
   useEffect(() => {
@@ -236,39 +234,10 @@ function BudgetInner({ tripId }: { tripId: string }) {
     return out;
   }, [balancesCents]);
 
-  
-  const spendingByPerson = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const p of people) map[p] = 0;
-
-    for (const e of expenses) {
-      if (map[e.paidBy] !== undefined) {
-        map[e.paidBy] += e.amount;
-      }
-    }
-
-    const total = Object.values(map).reduce((sum, value) => sum + value, 0);
-
-    return Object.entries(map)
-      .map(([name, value]) => ({
-        name,
-        value,
-        percent: total > 0 ? (value / total) * 100 : 0,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [expenses, people]);
-
   const totalSpent = useMemo(
     () => expenses.reduce((sum, e) => sum + e.amount, 0),
     [expenses]
   );
-
-  
-  const topSpender = spendingByPerson[0];
-
-  const biggestDebtor = Object.entries(balancesCents)
-    .filter(([, v]) => v < 0)
-    .sort((a, b) => a[1] - b[1])[0];
 
   const sortedBalances = useMemo(
     () => Object.entries(balancesCents).sort((a, b) => b[1] - a[1]),
@@ -276,192 +245,71 @@ function BudgetInner({ tripId }: { tripId: string }) {
   );
 
   return (
-    <main className="min-h-dvh bg-[#F7F7F3] pb-28">
+    <main className="min-h-dvh bg-slate-50 pb-16">
       <TripHeroPro tripId={tripId} section="Budżet" />
 
-      <div className="px-4 pt-4">
-        <div className="mx-auto max-w-xl">
-          <div className="rounded-[32px] bg-gradient-to-br from-black via-neutral-900 to-neutral-800 p-5 text-white shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-            <div className="text-xs uppercase tracking-wide text-white/60">
-              Podsumowanie
-            </div>
-
-            <div className="mt-2 text-3xl font-semibold">
-              {fmt(totalSpent, currency)}
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-2xl bg-white/10 p-3">
-                <div className="text-white/60">Osób</div>
-                <div className="mt-1 text-lg font-semibold">{people.length}</div>
-              </div>
-
-              <div className="rounded-2xl bg-white/10 p-3">
-                <div className="text-white/60">Wydatków</div>
-                <div className="mt-1 text-lg font-semibold">{expenses.length}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-4 pt-5">
-        <div className="mx-auto max-w-xl space-y-4">
-
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">
-              Kto ile zapłacił
-          <section className="rounded-[28px] border border-black/5 bg-[#F4EEE4] p-4">
-            <div className="text-sm font-semibold text-neutral-900">
-              💡 Insight
-            </div>
-
-            <div className="mt-2 text-sm text-neutral-700 space-y-1">
-              {topSpender && (
-                <div>
-                  Najwięcej wydała:{" "}
-                  <span className="font-semibold">
-                    {topSpender.name}
-                  </span>
-                </div>
-              )}
-
-              {biggestDebtor && (
-                <div>
-                  Najwięcej do oddania ma:{" "}
-                  <span className="font-semibold">
-                    {biggestDebtor[0]}
-                  </span>
-                </div>
-              )}
-            </div>
-          </section>
-
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {spendingByPerson.map((p) => (
-                <div key={p.name}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-neutral-800">{p.name}</span>
-                    <span className="text-neutral-500">
-                      {p.value.toFixed(2)} {currency}
-                    </span>
-                  </div>
-
-                  <div className="mt-1 h-2 w-full rounded-full bg-neutral-200">
-                    <div
-                      className="h-full rounded-full bg-neutral-900 transition-all"
-                      style={{ width: `${p.percent}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-            <div className="bg-[linear-gradient(135deg,#1f2937_0%,#111827_55%,#2f3a4f_100%)] px-5 py-6 text-white">
-              <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+      <div className="px-3 pt-5">
+        <div className="space-y-4">
+          <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+            <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-800 px-4 py-5 text-white">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white/80">
                 <Wallet size={16} />
                 Finanse wyjazdu
               </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight">Budżet podróży</h1>
-              <p className="mt-2 max-w-md text-sm leading-6 text-white/75">
+              <h1 className="mt-1 text-xl font-black">Budżet podróży</h1>
+              <p className="mt-1 text-sm text-white/75">
                 Dodawaj wydatki, dziel koszty i sprawdzaj kto komu oddaje.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 px-4 py-4">
-              <div className="rounded-[24px] bg-[#F8F8F6] p-4">
-                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                   <Receipt size={14} />
                   Wydatki
                 </div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                  {expenses.length}
-                </div>
+                <div className="mt-1 text-lg font-black text-slate-900">{expenses.length}</div>
               </div>
 
-              <div className="rounded-[24px] bg-[#F4EEE4] p-4">
-                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                   <Wallet size={14} />
                   Suma
                 </div>
-                <div className="mt-2 text-lg font-semibold tracking-tight text-neutral-900">
+                <div className="mt-1 text-lg font-black text-slate-900">
                   {fmt(totalSpent, currency)}
                 </div>
               </div>
             </div>
-          </section>
+          </div>
 
           {!editable && (
-            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
               Masz dostęp tylko do podglądu. Edycja jest wyłączona dla roli viewer.
             </div>
           )}
 
           {msg && (
-            <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
               {msg}
             </div>
           )}
 
-          <div className="rounded-[24px] border border-black/5 bg-white p-1 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-            <div className="grid grid-cols-3 gap-1">
-              <button
-                onClick={() => setActiveTab("expenses")}
-                className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
-                  activeTab === "expenses"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Wydatki
-              </button>
-
-              <button
-                onClick={() => setActiveTab("balances")}
-                className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
-                  activeTab === "balances"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Salda
-              </button>
-
-              <button
-                onClick={() => setActiveTab("settlements")}
-                className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
-                  activeTab === "settlements"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Rozliczenia
-              </button>
-            </div>
-          </div>
-
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
+          <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
               <Users size={16} />
               Osoby i waluta
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-2">
               <input
-                className="w-24 rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                className="w-24 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                 placeholder="EUR"
               />
               <input
-                className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
                 value={newPerson}
                 onChange={(e) => setNewPerson(e.target.value)}
                 onKeyDown={(e) => {
@@ -471,22 +319,22 @@ function BudgetInner({ tripId }: { tripId: string }) {
               />
               <button
                 onClick={addPerson}
-                className="shrink-0 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white active:scale-[0.98]"
+                className="shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm active:scale-[0.98]"
               >
                 Dodaj
               </button>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {people.map((p) => (
                 <div
                   key={p}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-black/5 bg-[#F8F8F6] px-3 py-2 text-sm"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                 >
-                  <span className="font-semibold text-neutral-800">{p}</span>
+                  <span className="font-semibold text-slate-800">{p}</span>
                   <button
                     onClick={() => removePerson(p)}
-                    className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
+                    className="rounded-lg p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -495,13 +343,12 @@ function BudgetInner({ tripId }: { tripId: string }) {
             </div>
           </section>
 
-          {activeTab === "expenses" && (
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">Dodaj wydatek</div>
+          <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-sm font-bold text-slate-900">Dodaj wydatek</div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-3">
               <input
-                className="w-full rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Np. kolacja, bilety, hotel"
@@ -509,14 +356,14 @@ function BudgetInner({ tripId }: { tripId: string }) {
 
               <div className="flex gap-2">
                 <input
-                  className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                  className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
                   placeholder="Kwota"
                 />
                 <select
-                  className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                  className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
                   value={paidBy}
                   onChange={(e) => setPaidBy(e.target.value)}
                 >
@@ -530,9 +377,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
               </div>
 
               <div>
-                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                  Podziel między
-                </div>
+                <div className="mb-2 text-xs font-semibold text-slate-500">Podziel między</div>
                 <div className="flex flex-wrap gap-2">
                   {people.map((p) => {
                     const active = splitAmong.includes(p);
@@ -541,10 +386,10 @@ function BudgetInner({ tripId }: { tripId: string }) {
                         key={p}
                         onClick={() => toggleSplit(p)}
                         className={cx(
-                          "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
+                          "rounded-2xl border px-3 py-2 text-sm font-semibold",
                           active
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-black/5 bg-white text-neutral-700"
+                            : "border-slate-200 bg-white text-slate-700"
                         )}
                       >
                         {p}
@@ -555,22 +400,20 @@ function BudgetInner({ tripId }: { tripId: string }) {
               </div>
 
               <button
-                className="w-full rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
+                className="w-full rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white"
                 onClick={addExpense}
               >
                 Dodaj wydatek
               </button>
             </div>
           </section>
-          )}
 
-          {activeTab === "balances" && (
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">Salda osób</div>
+          <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-sm font-bold text-slate-900">Salda osób</div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-3">
               {sortedBalances.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-neutral-300 bg-[#F8F8F6] px-4 py-5 text-center text-sm text-neutral-500">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
                   Brak danych.
                 </div>
               ) : (
@@ -582,13 +425,13 @@ function BudgetInner({ tripId }: { tripId: string }) {
                   return (
                     <div
                       key={name}
-                      className="flex items-center justify-between rounded-[24px] border border-black/5 bg-white p-3"
+                      className="flex items-center justify-between rounded-[24px] border border-slate-200 bg-white p-3"
                     >
-                      <div className="text-sm font-semibold text-neutral-900">{name}</div>
+                      <div className="text-sm font-semibold text-slate-900">{name}</div>
                       <div
                         className={cx(
-                          "rounded-2xl px-3 py-1.5 text-sm font-semibold",
-                          zero && "bg-neutral-100 text-neutral-500",
+                          "rounded-2xl px-3 py-1.5 text-sm font-bold",
+                          zero && "bg-slate-100 text-slate-500",
                           positive && "bg-emerald-50 text-emerald-700",
                           cents < 0 && "bg-rose-50 text-rose-700"
                         )}
@@ -602,32 +445,30 @@ function BudgetInner({ tripId }: { tripId: string }) {
               )}
             </div>
           </section>
-          )}
 
-          {activeTab === "settlements" && (
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
+          <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
               <ArrowRightLeft size={16} />
               Kto komu oddaje
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-3">
               {transfers.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-neutral-300 bg-[#F8F8F6] px-4 py-5 text-center text-sm text-neutral-500">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
                   Brak rozliczeń.
                 </div>
               ) : (
                 transfers.map((t, idx) => (
                   <div
                     key={`${t.from}-${t.to}-${idx}`}
-                    className="flex items-center justify-between rounded-[24px] border border-black/5 bg-white p-3"
+                    className="flex items-center justify-between rounded-[24px] border border-slate-200 bg-white p-3"
                   >
-                    <div className="min-w-0 text-sm text-neutral-700">
-                      <span className="font-semibold text-neutral-900">{t.from}</span>
-                      <span className="mx-2 text-neutral-400">→</span>
-                      <span className="font-semibold text-neutral-900">{t.to}</span>
+                    <div className="min-w-0 text-sm text-slate-700">
+                      <span className="font-semibold text-slate-900">{t.from}</span>
+                      <span className="mx-2 text-slate-400">→</span>
+                      <span className="font-semibold text-slate-900">{t.to}</span>
                     </div>
-                    <div className="rounded-2xl bg-[#F4EEE4] px-3 py-1.5 text-sm font-semibold text-neutral-900">
+                    <div className="rounded-2xl bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-900">
                       {fmt(fromCents(t.cents), currency)}
                     </div>
                   </div>
@@ -635,39 +476,36 @@ function BudgetInner({ tripId }: { tripId: string }) {
               )}
             </div>
           </section>
-          )}
 
-          {activeTab === "expenses" && (
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">Wydatki</div>
+          <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-sm font-bold text-slate-900">Wydatki</div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-3">
               {expenses.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-neutral-300 bg-[#F8F8F6] px-4 py-6 text-center text-sm text-neutral-500">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
                   Brak wydatków. Dodaj pierwszy wydatek powyżej.
                 </div>
               ) : (
                 expenses.map((e) => (
                   <div
                     key={e.id}
-                    className="rounded-[24px] border border-black/5 bg-white p-4"
+                    className="rounded-[24px] border border-slate-200 bg-white p-3"
                   >
                     <div className="flex items-start gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="break-words text-sm font-semibold text-neutral-900">
+                        <div className="break-words text-sm font-bold text-slate-900">
                           {e.title}
                         </div>
-                        <div className="mt-2 text-xs text-neutral-500">
-                          Zapłacił(a):{" "}
-                          <span className="font-semibold text-neutral-700">{e.paidBy}</span>
+                        <div className="mt-1 text-xs text-slate-500">
+                          Zapłacił(a): <span className="font-semibold text-slate-700">{e.paidBy}</span>
                         </div>
-                        <div className="mt-1 text-xs text-neutral-500">
+                        <div className="mt-1 text-xs text-slate-500">
                           Podział: {e.splitAmong.join(", ")}
                         </div>
                       </div>
 
                       <div className="flex flex-col items-end gap-2">
-                        <div className="rounded-2xl bg-[#F8F8F6] px-3 py-1.5 text-sm font-semibold text-neutral-900">
+                        <div className="rounded-2xl bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-900">
                           {fmt(e.amount, currency)}
                         </div>
                         <button
@@ -683,11 +521,8 @@ function BudgetInner({ tripId }: { tripId: string }) {
               )}
             </div>
           </section>
-          )}
         </div>
       </div>
-
-      <BottomNav tripId={tripId} />
     </main>
   );
 }

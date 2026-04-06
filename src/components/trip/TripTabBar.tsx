@@ -21,7 +21,7 @@ export default function TripTabBar() {
   ];
 
   return (
-    <nav className="fixed bottom-3 left-1/2 z-[80] w-full max-w-[430px] -translate-x-1/2 px-3">
+    <nav className="fixed inset-x-0 bottom-3 z-[80] px-3">
       <div className="rounded-[28px] border border-slate-200/80 bg-white/85 p-2 shadow-[0_18px_60px_rgba(15,23,42,0.22)] backdrop-blur">
         <div className="grid grid-cols-5 gap-1">
           {items.map((it) => {

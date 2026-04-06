@@ -63,7 +63,6 @@ function BudgetInner({ tripId }: { tripId: string }) {
   const [paidBy, setPaidBy] = useState("");
   const [splitAmong, setSplitAmong] = useState<string[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"expenses" | "balances" | "settlements">("expenses");
   const [myRole, setMyRole] = useState<TripRole>("viewer");
 
   useEffect(() => {
@@ -236,39 +235,10 @@ function BudgetInner({ tripId }: { tripId: string }) {
     return out;
   }, [balancesCents]);
 
-  
-  const spendingByPerson = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const p of people) map[p] = 0;
-
-    for (const e of expenses) {
-      if (map[e.paidBy] !== undefined) {
-        map[e.paidBy] += e.amount;
-      }
-    }
-
-    const total = Object.values(map).reduce((sum, value) => sum + value, 0);
-
-    return Object.entries(map)
-      .map(([name, value]) => ({
-        name,
-        value,
-        percent: total > 0 ? (value / total) * 100 : 0,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [expenses, people]);
-
   const totalSpent = useMemo(
     () => expenses.reduce((sum, e) => sum + e.amount, 0),
     [expenses]
   );
-
-  
-  const topSpender = spendingByPerson[0];
-
-  const biggestDebtor = Object.entries(balancesCents)
-    .filter(([, v]) => v < 0)
-    .sort((a, b) => a[1] - b[1])[0];
 
   const sortedBalances = useMemo(
     () => Object.entries(balancesCents).sort((a, b) => b[1] - a[1]),
@@ -307,59 +277,6 @@ function BudgetInner({ tripId }: { tripId: string }) {
 
       <div className="px-4 pt-5">
         <div className="mx-auto max-w-xl space-y-4">
-
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">
-              Kto ile zapłacił
-          <section className="rounded-[28px] border border-black/5 bg-[#F4EEE4] p-4">
-            <div className="text-sm font-semibold text-neutral-900">
-              💡 Insight
-            </div>
-
-            <div className="mt-2 text-sm text-neutral-700 space-y-1">
-              {topSpender && (
-                <div>
-                  Najwięcej wydała:{" "}
-                  <span className="font-semibold">
-                    {topSpender.name}
-                  </span>
-                </div>
-              )}
-
-              {biggestDebtor && (
-                <div>
-                  Najwięcej do oddania ma:{" "}
-                  <span className="font-semibold">
-                    {biggestDebtor[0]}
-                  </span>
-                </div>
-              )}
-            </div>
-          </section>
-
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {spendingByPerson.map((p) => (
-                <div key={p.name}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-neutral-800">{p.name}</span>
-                    <span className="text-neutral-500">
-                      {p.value.toFixed(2)} {currency}
-                    </span>
-                  </div>
-
-                  <div className="mt-1 h-2 w-full rounded-full bg-neutral-200">
-                    <div
-                      className="h-full rounded-full bg-neutral-900 transition-all"
-                      style={{ width: `${p.percent}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
           <section className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <div className="bg-[linear-gradient(135deg,#1f2937_0%,#111827_55%,#2f3a4f_100%)] px-5 py-6 text-white">
               <div className="flex items-center gap-2 text-sm font-medium text-white/80">
@@ -406,46 +323,6 @@ function BudgetInner({ tripId }: { tripId: string }) {
               {msg}
             </div>
           )}
-
-          <div className="rounded-[24px] border border-black/5 bg-white p-1 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-            <div className="grid grid-cols-3 gap-1">
-              <button
-                onClick={() => setActiveTab("expenses")}
-                className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
-                  activeTab === "expenses"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Wydatki
-              </button>
-
-              <button
-                onClick={() => setActiveTab("balances")}
-                className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
-                  activeTab === "balances"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Salda
-              </button>
-
-              <button
-                onClick={() => setActiveTab("settlements")}
-                className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
-                  activeTab === "settlements"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Rozliczenia
-              </button>
-            </div>
-          </div>
 
           <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
@@ -495,7 +372,6 @@ function BudgetInner({ tripId }: { tripId: string }) {
             </div>
           </section>
 
-          {activeTab === "expenses" && (
           <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <div className="text-sm font-semibold text-neutral-900">Dodaj wydatek</div>
 
@@ -562,9 +438,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
               </button>
             </div>
           </section>
-          )}
 
-          {activeTab === "balances" && (
           <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <div className="text-sm font-semibold text-neutral-900">Salda osób</div>
 
@@ -602,9 +476,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
               )}
             </div>
           </section>
-          )}
 
-          {activeTab === "settlements" && (
           <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
               <ArrowRightLeft size={16} />
@@ -635,9 +507,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
               )}
             </div>
           </section>
-          )}
 
-          {activeTab === "expenses" && (
           <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <div className="text-sm font-semibold text-neutral-900">Wydatki</div>
 
@@ -683,7 +553,6 @@ function BudgetInner({ tripId }: { tripId: string }) {
               )}
             </div>
           </section>
-          )}
         </div>
       </div>
 

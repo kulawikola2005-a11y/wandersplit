@@ -19,19 +19,29 @@ const Item = ({
   <Link
     href={href}
     className={cx(
-      "flex flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 text-[11px] font-semibold",
-      active ? "text-indigo-700" : "text-slate-600"
+      "flex flex-col items-center justify-center gap-1 rounded-[18px] px-2 py-2 text-[10px] font-semibold transition active:scale-[0.97]",
+      active ? "text-slate-900" : "text-slate-500"
     )}
   >
     <div
       className={cx(
-        "grid h-9 w-9 place-items-center rounded-2xl border",
-        active ? "border-indigo-200 bg-indigo-50" : "border-slate-200 bg-white"
+        "grid h-9 w-9 place-items-center rounded-[16px] border transition",
+        active
+          ? "border-white/70 bg-white text-indigo-700 shadow-[0_8px_24px_rgba(79,70,229,0.22)]"
+          : "border-white/40 bg-white/55 text-slate-600"
       )}
     >
       {icon}
     </div>
-    <div className="leading-none">{label}</div>
+
+    <div
+      className={cx(
+        "leading-none transition",
+        active ? "font-extrabold text-slate-900" : "font-semibold text-slate-500"
+      )}
+    >
+      {label}
+    </div>
   </Link>
 );
 
@@ -46,10 +56,10 @@ export default function TripBottomNav() {
   const is = (p: string) => pathname === p;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40">
-      <div className="mx-auto max-w-[430px] px-4 pb-5">
-        <div className="rounded-[26px] border border-slate-200 bg-white/95 p-2 shadow-[0_18px_60px_rgba(2,6,23,0.18)] backdrop-blur">
-          <div className="grid grid-cols-5 gap-2">
+    <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 flex justify-center">
+      <div className="w-full max-w-[430px] px-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+        <div className="pointer-events-auto rounded-[24px] border border-white/50 bg-white/78 p-1.5 shadow-[0_14px_34px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+          <div className="grid grid-cols-5 gap-1.5">
             <Item href={base} icon={<LayoutDashboard size={18} />} label="Start" active={is(base)} />
             <Item href={`${base}/plan`} icon={<ListTodo size={18} />} label="Plan" active={is(`${base}/plan`)} />
             <Item

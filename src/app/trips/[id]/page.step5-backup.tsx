@@ -19,7 +19,6 @@ import TripHeroCard from "@/components/trip/TripHeroCard";
 import TripQuickActions from "@/components/trip/TripQuickActions";
 import TripStatsRow from "@/components/trip/TripStatsRow";
 import SectionCard from "@/components/trip/SectionCard";
-import BottomNav from "@/components/trip/BottomNav";
 
 type Trip = {
   id: string;
@@ -62,23 +61,6 @@ function pickCover(tripId: string) {
     h = (h * 31 + tripId.charCodeAt(i)) >>> 0;
   }
   return covers[h % covers.length];
-}
-
-function pickStopImage(seed: string) {
-  const images = [
-    "https://images.unsplash.com/photo-1480796927426-f609979314bd?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1503220317375-aaad61436b1b?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=1200&q=80",
-  ];
-
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-  return images[h % images.length];
 }
 
 function readTripFromLocalStorage(tripId: string): Trip | null {
@@ -221,6 +203,9 @@ export default function TripHomePage() {
       ? Math.round((completedChecklist / checklistData.length) * 100)
       : 0;
 
+  const firstStop = stopsData[0]?.name || stopsData[0]?.city || "Brak przystanków";
+  const secondStop = stopsData[1]?.name || stopsData[1]?.city || null;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -302,7 +287,6 @@ export default function TripHomePage() {
             <div className="h-28 animate-pulse rounded-[24px] bg-neutral-200/60" />
           </div>
           <div className="h-40 animate-pulse rounded-[28px] bg-neutral-200/60" />
-          <div className="h-48 animate-pulse rounded-[28px] bg-neutral-200/60" />
           <div className="h-40 animate-pulse rounded-[28px] bg-neutral-200/60" />
           <div className="h-56 animate-pulse rounded-[28px] bg-neutral-200/60" />
         </div>
@@ -414,58 +398,34 @@ export default function TripHomePage() {
               href={`/trips/${tripId}/stops`}
               ctaLabel="Zobacz trasę"
             >
-              {stopsData.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3">
-                  {stopsData.slice(0, 2).map((stop, index) => {
-                    const label = stop.name || stop.city || `Przystanek ${index + 1}`;
-                    const image = pickStopImage(`${tripId}-${label}-${index}`);
-
-                    return (
-                      <div
-                        key={`${label}-${index}`}
-                        className="overflow-hidden rounded-[24px] border border-black/5"
-                        style={{
-                          backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.52), rgba(0,0,0,0.10)), url('${image}')`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
-                      >
-                        <div className="px-4 pb-4 pt-16">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/75">
-                            Przystanek {index + 1}
-                          </p>
-                          <p className="mt-1 text-lg font-semibold text-white">
-                            {label}
-                          </p>
-                          <p className="mt-1 text-sm text-white/80">
-                            {stopsData.length > 2 && index === 1
-                              ? `+ ${stopsData.length - 2} kolejne miejsca`
-                              : "Podgląd etapu podróży"}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div className="flex items-center justify-between rounded-[22px] bg-[#EEF4EA] px-4 py-3">
-                    <span className="text-sm font-medium text-neutral-700">
-                      Liczba przystanków
-                    </span>
-                    <span className="text-lg font-semibold text-neutral-900">
-                      {stops}
-                    </span>
-                  </div>
-                </div>
-              ) : (
+              <div className="space-y-3">
                 <div className="rounded-[22px] bg-neutral-50 p-4">
-                  <p className="text-sm font-medium text-neutral-900">
-                    Jeszcze nie masz przystanków
+                  <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+                    Pierwszy przystanek
                   </p>
-                  <p className="mt-1 text-sm text-neutral-500">
-                    Dodaj miejsca, aby zobaczyć trasę podróży.
+                  <p className="mt-2 text-lg font-semibold text-neutral-900">
+                    {firstStop}
                   </p>
+                  {secondStop ? (
+                    <p className="mt-1 text-sm text-neutral-500">
+                      Dalej: {secondStop}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm text-neutral-500">
+                      Dodaj kolejne miejsca podróży
+                    </p>
+                  )}
                 </div>
-              )}
+
+                <div className="flex items-center justify-between rounded-[22px] bg-[#EEF4EA] px-4 py-3">
+                  <span className="text-sm font-medium text-neutral-700">
+                    Liczba przystanków
+                  </span>
+                  <span className="text-lg font-semibold text-neutral-900">
+                    {stops}
+                  </span>
+                </div>
+              </div>
             </SectionCard>
 
             <SectionCard
@@ -597,7 +557,6 @@ export default function TripHomePage() {
           </div>
         )}
       </div>
-      <BottomNav tripId={tripId} />
     </PageTransition>
   );
 }

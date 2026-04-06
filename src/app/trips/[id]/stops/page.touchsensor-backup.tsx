@@ -8,7 +8,6 @@ import { MapPin, Plus, Trash2, Route, GripVertical } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
-  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -72,19 +71,20 @@ function SortableStopItem({
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className={`flex touch-none items-start justify-between rounded-[24px] border border-black/5 bg-white p-3 ${
+      className={`flex items-start justify-between rounded-[24px] border border-black/5 bg-white p-3 ${
         isDragging ? "shadow-[0_18px_40px_rgba(2,6,23,0.12)]" : ""
       }`}
     >
       <div className="flex min-w-0 gap-3">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-500"
-          aria-hidden="true"
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-500"
+          aria-label={`Przeciągnij ${stop.name}`}
         >
-          <GripVertical size={18} />
-        </div>
+          <GripVertical size={16} />
+        </button>
 
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-700">
           {index + 1}
@@ -131,15 +131,7 @@ export default function TripStopsPage() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 4,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 120,
-        tolerance: 8,
-      },
+      activationConstraint: { distance: 6 },
     })
   );
 

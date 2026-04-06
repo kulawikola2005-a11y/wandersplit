@@ -4,192 +4,59 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { MapPin, Plus, Trash2, Route, GripVertical } from "lucide-react";
-import {
-  DndContext,
-  PointerSensor,
-  TouchSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import BottomNav from "@/components/trip/BottomNav";
+import { MapPin, Plus, Trash2, Route } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
 import { geocodeCity } from "@/lib/maps/geocode";
-
-type LocalStop = {
-  id: string;
-  name: string;
-  lat: number | null;
-  lng: number | null;
-  sort_order: number;
-};
+import { readStopsFromDB, type TripStop } from "@/lib/trips/db";
+import { getMyTripRole, canEditTrip, type TripRole } from "@/lib/trips/roles";
+import BottomNav from "@/components/trip/BottomNav";
 
 const StopsPreviewMap = dynamic(
   () => import("@/components/trip/StopsPreviewMap"),
   { ssr: false }
 );
 
-function uid() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : String(Math.random()).slice(2);
-}
-
-function SortableStopItem({
-  stop,
-  index,
-  busy,
-  onRemove,
-}: {
-  stop: LocalStop;
-  index: number;
-  busy: boolean;
-  onRemove: (id: string) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: stop.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`flex touch-none items-start justify-between rounded-[24px] border border-black/5 bg-white p-3 ${
-        isDragging ? "shadow-[0_18px_40px_rgba(2,6,23,0.12)]" : ""
-      }`}
-    >
-      <div className="flex min-w-0 gap-3">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-500"
-          aria-hidden="true"
-        >
-          <GripVertical size={18} />
-        </div>
-
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-700">
-          {index + 1}
-        </div>
-
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-neutral-900">
-            {stop.name}
-          </div>
-          {stop.lat != null && stop.lng != null ? (
-            <div className="mt-1 text-xs text-neutral-400">
-              {stop.lat}, {stop.lng}
-            </div>
-          ) : (
-            <div className="mt-1 text-xs text-neutral-400">
-              Brak współrzędnych
-            </div>
-          )}
-        </div>
-      </div>
-
-      <button
-        onClick={() => onRemove(stop.id)}
-        disabled={busy}
-        className="ml-3 shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 disabled:opacity-50"
-      >
-        <Trash2 size={15} />
-      </button>
-    </div>
-  );
-}
-
 export default function TripStopsPage() {
   const params = useParams();
   const tripId = String(params?.id ?? "");
-  const storageKey = useMemo(() => `wandersplit:stops:${tripId}`, [tripId]);
 
-  const [items, setItems] = useState<LocalStop[]>([]);
+  const [items, setItems] = useState<TripStop[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<TripRole>("viewer");
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 4,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 120,
-        tolerance: 8,
-      },
-    })
-  );
+  const editable = canEditTrip(myRole);
 
   const stopsWithCoords = useMemo(
     () => items.filter((item) => item.lat != null && item.lng != null).length,
     [items]
   );
 
-  function loadLocal() {
+  async function load() {
     setLoading(true);
     try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) {
-        setItems([]);
-        return;
-      }
-
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        const normalized = parsed.map((item: any, index: number) => ({
-          id: String(item?.id ?? uid()),
-          name: String(item?.name ?? "Przystanek"),
-          lat: item?.lat == null ? null : Number(item.lat),
-          lng: item?.lng == null ? null : Number(item.lng),
-          sort_order: Number(item?.sort_order ?? index + 1),
-        }));
-        setItems(normalized);
-      } else {
-        setItems([]);
-      }
+      const rows = await readStopsFromDB(tripId);
+      setItems(rows);
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się wczytać przystanków.");
-      setItems([]);
     } finally {
       setLoading(false);
     }
   }
 
-  function saveLocal(next: LocalStop[]) {
-    setItems(next);
-    localStorage.setItem(storageKey, JSON.stringify(next));
-  }
-
   useEffect(() => {
     if (!tripId) return;
-    loadLocal();
-  }, [tripId, storageKey]);
+    getMyTripRole(tripId).then(setMyRole).catch(() => setMyRole("viewer"));
+    load();
+  }, [tripId]);
 
   async function addStop() {
+    if (!editable) return;
+
     const value = name.trim();
     if (!value) {
       setMsg("Podaj nazwę przystanku.");
@@ -200,20 +67,31 @@ export default function TripStopsPage() {
     setMsg(null);
 
     try {
-      const geo = await geocodeCity(value).catch(() => null);
+      const geo = await geocodeCity(value);
 
-      const nextStop: LocalStop = {
-        id: uid(),
+      const { data } = await supabase.auth.getUser();
+      const userId = data?.user?.id;
+
+      if (!userId) {
+        setMsg("Brak użytkownika.");
+        return;
+      }
+
+      const { error } = await supabase.from("trip_stops").insert({
+        id: crypto.randomUUID(),
+        trip_id: tripId,
+        user_id: userId,
         name: value,
         lat: geo?.lat ?? null,
         lng: geo?.lng ?? null,
         sort_order: items.length + 1,
-      };
+      });
 
-      const next = [...items, nextStop];
-      saveLocal(next);
+      if (error) throw error;
+
       setName("");
       setSheetOpen(false);
+      await load();
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się dodać przystanku.");
@@ -222,43 +100,22 @@ export default function TripStopsPage() {
     }
   }
 
-  function removeStop(id: string) {
+  async function removeStop(id: string) {
+    if (!editable) return;
+
     setBusy(true);
     setMsg(null);
 
     try {
-      const filtered = items
-        .filter((item) => item.id !== id)
-        .map((item, index) => ({
-          ...item,
-          sort_order: index + 1,
-        }));
-
-      saveLocal(filtered);
+      const { error } = await supabase.from("trip_stops").delete().eq("id", id);
+      if (error) throw error;
+      await load();
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się usunąć przystanku.");
     } finally {
       setBusy(false);
     }
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = items.findIndex((item) => item.id === active.id);
-    const newIndex = items.findIndex((item) => item.id === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const reordered = arrayMove(items, oldIndex, newIndex).map((item, index) => ({
-      ...item,
-      sort_order: index + 1,
-    }));
-
-    saveLocal(reordered);
   }
 
   return (
@@ -311,6 +168,12 @@ export default function TripStopsPage() {
             </div>
           </section>
 
+          {!editable && (
+            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Masz dostęp tylko do podglądu. Edycja jest wyłączona dla roli viewer.
+            </div>
+          )}
+
           <StopsPreviewMap items={items} />
 
           <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
@@ -325,14 +188,14 @@ export default function TripStopsPage() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Np. Rome, Paris, Tokyo..."
                 className="w-full rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
-                disabled={busy}
+                disabled={!editable || busy}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") addStop();
                 }}
               />
               <button
                 onClick={addStop}
-                disabled={busy}
+                disabled={!editable || busy}
                 className="shrink-0 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
               >
                 Dodaj
@@ -366,53 +229,63 @@ export default function TripStopsPage() {
             </div>
           ) : (
             <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-neutral-900">
-                  Lista przystanków
-                </div>
-                <div className="text-xs text-neutral-400">
-                  Przytrzymaj ikonę i przeciągnij
-                </div>
+              <div className="text-sm font-semibold text-neutral-900">
+                Lista przystanków
               </div>
 
-              <div className="mt-4">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={items.map((item) => item.id)}
-                    strategy={verticalListSortingStrategy}
+              <div className="mt-4 space-y-3">
+                {items.map((s, index) => (
+                  <div
+                    key={s.id}
+                    className="flex items-start justify-between rounded-[24px] border border-black/5 bg-white p-3"
                   >
-                    <div className="space-y-3">
-                      {items.map((s, index) => (
-                        <SortableStopItem
-                          key={s.id}
-                          stop={s}
-                          index={index}
-                          busy={busy}
-                          onRemove={removeStop}
-                        />
-                      ))}
+                    <div className="flex min-w-0 gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-700">
+                        {index + 1}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-neutral-900">
+                          {s.name}
+                        </div>
+                        {s.lat != null && s.lng != null ? (
+                          <div className="mt-1 text-xs text-neutral-400">
+                            {s.lat}, {s.lng}
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-xs text-neutral-400">
+                            Brak współrzędnych
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </SortableContext>
-                </DndContext>
+
+                    <button
+                      onClick={() => removeStop(s.id)}
+                      disabled={!editable || busy}
+                      className="ml-3 shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 disabled:opacity-50"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
               </div>
             </section>
           )}
         </div>
       </div>
 
-      <button
-        onClick={() => setSheetOpen(true)}
-        className="fixed bottom-24 right-5 z-50 flex h-14 items-center gap-2 rounded-full bg-neutral-900 px-5 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.96]"
-      >
-        <Plus size={18} />
-        Dodaj
-      </button>
+      {editable && (
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="fixed bottom-24 right-5 z-50 flex h-14 items-center gap-2 rounded-full bg-neutral-900 px-5 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.96]"
+        >
+          <Plus size={18} />
+          Dodaj
+        </button>
+      )}
 
-      {sheetOpen && (
+      {editable && sheetOpen && (
         <div className="fixed inset-0 z-[100]">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"

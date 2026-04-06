@@ -19,7 +19,6 @@ import TripHeroCard from "@/components/trip/TripHeroCard";
 import TripQuickActions from "@/components/trip/TripQuickActions";
 import TripStatsRow from "@/components/trip/TripStatsRow";
 import SectionCard from "@/components/trip/SectionCard";
-import BottomNav from "@/components/trip/BottomNav";
 
 type Trip = {
   id: string;
@@ -29,22 +28,6 @@ type Trip = {
   base_currency?: string | null;
   cover_path?: string | null;
   user_id?: string | null;
-};
-
-type Expense = {
-  amount?: number | string;
-};
-
-type Stop = {
-  name?: string;
-  city?: string;
-};
-
-type ChecklistItem = {
-  title?: string;
-  checked?: boolean;
-  done?: boolean;
-  status?: string;
 };
 
 function pickCover(tripId: string) {
@@ -62,23 +45,6 @@ function pickCover(tripId: string) {
     h = (h * 31 + tripId.charCodeAt(i)) >>> 0;
   }
   return covers[h % covers.length];
-}
-
-function pickStopImage(seed: string) {
-  const images = [
-    "https://images.unsplash.com/photo-1480796927426-f609979314bd?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1503220317375-aaad61436b1b?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=1200&q=80",
-  ];
-
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-  return images[h % images.length];
 }
 
 function readTripFromLocalStorage(tripId: string): Trip | null {
@@ -113,20 +79,6 @@ function formatDateRange(start?: string | null, end?: string | null) {
   if (!start && !end) return "Brak dat";
   if (start && end) return `${start} → ${end}`;
   return start || end || "Brak dat";
-}
-
-function readArrayFromStorage<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.warn(`readArrayFromStorage error for ${key}:`, error);
-    return [];
-  }
 }
 
 const tripSections = [
@@ -195,30 +147,9 @@ export default function TripHomePage() {
         )
       : "-";
 
-  const stopsData = readArrayFromStorage<Stop>(`wandersplit:stops:${tripId}`);
-  const expensesData = readArrayFromStorage<Expense>(`wandersplit:expenses:${tripId}`);
-  const checklistData = readArrayFromStorage<ChecklistItem>(`wandersplit:checklist:${tripId}`);
-
-  const stops = stopsData.length;
-
-  const totalBudgetSpent = expensesData.reduce((sum, item) => {
-    const value =
-      typeof item?.amount === "number"
-        ? item.amount
-        : Number(String(item?.amount ?? 0).replace(",", "."));
-    return sum + (Number.isFinite(value) ? value : 0);
-  }, 0);
-
-  const completedChecklist = checklistData.filter(
-    (item) =>
-      item?.checked === true ||
-      item?.done === true ||
-      item?.status === "done"
-  ).length;
-
-  const checklistProgress =
-    checklistData.length > 0
-      ? Math.round((completedChecklist / checklistData.length) * 100)
+  const stops =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem(`wandersplit:stops:${tripId}`) || "[]").length
       : 0;
 
   useEffect(() => {
@@ -301,9 +232,10 @@ export default function TripHomePage() {
             <div className="h-28 animate-pulse rounded-[24px] bg-neutral-200/60" />
             <div className="h-28 animate-pulse rounded-[24px] bg-neutral-200/60" />
           </div>
-          <div className="h-40 animate-pulse rounded-[28px] bg-neutral-200/60" />
-          <div className="h-48 animate-pulse rounded-[28px] bg-neutral-200/60" />
-          <div className="h-40 animate-pulse rounded-[28px] bg-neutral-200/60" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="h-24 animate-pulse rounded-[24px] bg-neutral-200/60" />
+            <div className="h-24 animate-pulse rounded-[24px] bg-neutral-200/60" />
+          </div>
           <div className="h-56 animate-pulse rounded-[28px] bg-neutral-200/60" />
         </div>
       </div>
@@ -387,118 +319,6 @@ export default function TripHomePage() {
           />
 
           <TripQuickActions tripId={tripId} />
-
-          <div className="grid grid-cols-1 gap-4">
-            <SectionCard
-              title="Budżet"
-              description="Szybki podgląd wydatków"
-              href={`/trips/${tripId}/budget`}
-              ctaLabel="Otwórz"
-            >
-              <div className="rounded-[22px] bg-neutral-50 p-4">
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                  Wydano łącznie
-                </p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                  {totalBudgetSpent.toFixed(2)} {trip.base_currency || "EUR"}
-                </p>
-                <p className="mt-2 text-sm text-neutral-500">
-                  Liczba wydatków: {expensesData.length}
-                </p>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Przystanki"
-              description="Podgląd trasy podróży"
-              href={`/trips/${tripId}/stops`}
-              ctaLabel="Zobacz trasę"
-            >
-              {stopsData.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3">
-                  {stopsData.slice(0, 2).map((stop, index) => {
-                    const label = stop.name || stop.city || `Przystanek ${index + 1}`;
-                    const image = pickStopImage(`${tripId}-${label}-${index}`);
-
-                    return (
-                      <div
-                        key={`${label}-${index}`}
-                        className="overflow-hidden rounded-[24px] border border-black/5"
-                        style={{
-                          backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.52), rgba(0,0,0,0.10)), url('${image}')`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
-                      >
-                        <div className="px-4 pb-4 pt-16">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/75">
-                            Przystanek {index + 1}
-                          </p>
-                          <p className="mt-1 text-lg font-semibold text-white">
-                            {label}
-                          </p>
-                          <p className="mt-1 text-sm text-white/80">
-                            {stopsData.length > 2 && index === 1
-                              ? `+ ${stopsData.length - 2} kolejne miejsca`
-                              : "Podgląd etapu podróży"}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div className="flex items-center justify-between rounded-[22px] bg-[#EEF4EA] px-4 py-3">
-                    <span className="text-sm font-medium text-neutral-700">
-                      Liczba przystanków
-                    </span>
-                    <span className="text-lg font-semibold text-neutral-900">
-                      {stops}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-[22px] bg-neutral-50 p-4">
-                  <p className="text-sm font-medium text-neutral-900">
-                    Jeszcze nie masz przystanków
-                  </p>
-                  <p className="mt-1 text-sm text-neutral-500">
-                    Dodaj miejsca, aby zobaczyć trasę podróży.
-                  </p>
-                </div>
-              )}
-            </SectionCard>
-
-            <SectionCard
-              title="Checklista"
-              description="Postęp przygotowań"
-              href={`/trips/${tripId}/checklist`}
-              ctaLabel="Otwórz listę"
-            >
-              <div className="space-y-3">
-                <div className="rounded-[22px] bg-neutral-50 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-neutral-700">
-                      Ukończono
-                    </span>
-                    <span className="text-sm font-semibold text-neutral-900">
-                      {completedChecklist}/{checklistData.length}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-neutral-200">
-                    <div
-                      className="h-full rounded-full bg-neutral-900 transition-all"
-                      style={{ width: `${checklistProgress}%` }}
-                    />
-                  </div>
-
-                  <p className="mt-3 text-sm text-neutral-500">
-                    Postęp: {checklistProgress}%
-                  </p>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
 
           <SectionCard
             title="Sekcje tripa"
@@ -597,7 +417,6 @@ export default function TripHomePage() {
           </div>
         )}
       </div>
-      <BottomNav tripId={tripId} />
     </PageTransition>
   );
 }

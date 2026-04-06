@@ -62,7 +62,7 @@ export async function readStopsFromDB(tripId: string): Promise<TripStop[]> {
   }
 
   if (error) {
-    console.error("readStopsFromDB error:", error);
+    console.warn("readStopsFromDB warning:", error instanceof Error ? error.message : error);
   }
 
   return readStopsFromLocalStorage(tripId);
