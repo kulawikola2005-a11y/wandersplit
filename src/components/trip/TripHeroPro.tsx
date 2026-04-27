@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, CalendarDays } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
+import { getTripCoverUrl } from "@/lib/trips/media";
+import { getSmartCover } from "@/lib/trips/getSmartCover";
 
 type TripMeta = {
   id: string;
@@ -10,21 +13,8 @@ type TripMeta = {
   start_date: string;
   end_date: string;
   base_currency: string;
+  cover_path?: string | null;
 };
-
-function pickCover(tripId: string) {
-  const covers = [
-    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80",
-    "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1400&q=80",
-    "https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=1400&q=80",
-    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1400&q=80",
-    "https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=1400&q=80",
-    "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1400&q=80",
-  ];
-  let h = 0;
-  for (let i = 0; i < tripId.length; i++) h = (h * 31 + tripId.charCodeAt(i)) >>> 0;
-  return covers[h % covers.length];
-}
 
 function safeReadTrips(): TripMeta[] {
   try {
@@ -37,61 +27,124 @@ function safeReadTrips(): TripMeta[] {
   }
 }
 
+function formatDateRange(start?: string, end?: string) {
+  if (!start && !end) return "Brak dat";
+  if (start && end) return `${start} → ${end}`;
+  return start || end || "Brak dat";
+}
+
 export default function TripHeroPro({ tripId, section }: { tripId: string; section: string }) {
-  const cover = useMemo(() => pickCover(tripId), [tripId]);
   const [mounted, setMounted] = useState(false);
   const [meta, setMeta] = useState<TripMeta | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+
+  const fallbackCover = useMemo(
+    () => getSmartCover(meta?.title || "travel", tripId),
+    [meta?.title, tripId]
+  );
 
   useEffect(() => {
-    setMounted(true);
-    const trips = safeReadTrips();
-    setMeta(trips.find((t) => t.id === tripId) ?? null);
+    let cancelled = false;
+
+    async function load() {
+      setMounted(true);
+
+      const trips = safeReadTrips();
+      const localMeta = trips.find((t) => t.id === tripId) ?? null;
+
+      if (!cancelled) setMeta(localMeta);
+
+      const localCoverPath = localMeta?.cover_path ?? null;
+      if (localCoverPath) {
+        try {
+          const url = await getTripCoverUrl(localCoverPath);
+          if (!cancelled) setCoverUrl(url);
+        } catch {
+          if (!cancelled) setCoverUrl(null);
+        }
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("trips")
+          .select("id, title, start_date, end_date, base_currency, cover_path")
+          .eq("id", tripId)
+          .maybeSingle();
+
+        if (!cancelled && !error && data) {
+          setMeta(data);
+
+          if (data.cover_path) {
+            const url = await getTripCoverUrl(data.cover_path);
+            if (!cancelled) setCoverUrl(url);
+          }
+        }
+      } catch {
+        // local fallback zostaje
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [tripId]);
 
-  // żeby nie było hydration mismatch: na SSR i pierwszym renderze klienta pokazujemy to samo
   if (!mounted) {
     return (
-      <div className="px-4 pt-5">
-        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-          <div className="h-36 w-full bg-slate-200 animate-pulse" />
-          <div className="px-4 pb-4 -mt-10">
-            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="h-5 w-40 bg-slate-200 rounded animate-pulse" />
-              <div className="mt-2 h-3 w-56 bg-slate-100 rounded animate-pulse" />
-            </div>
-          </div>
-        </div>
+      <div className="px-4 pt-4">
+        <div className="h-[210px] animate-pulse rounded-[34px] bg-slate-200/80" />
       </div>
     );
   }
 
   const title = meta?.title || "Trip";
-  const metaLine = meta ? `${meta.start_date} → ${meta.end_date} · ${meta.base_currency}` : "";
 
   return (
-    <div className="px-4 pt-5">
-      <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+    <div className="px-4 pt-4">
+      <div className="relative h-[250px] overflow-hidden rounded-[34px] bg-slate-900 shadow-[0_26px_70px_rgba(15,23,42,0.22)]">
         <div
-          className="h-36 w-full"
-          style={{ backgroundImage: `url('${cover}')`, backgroundSize: "cover", backgroundPosition: "center" }}
+          className="absolute inset-0 scale-[1.03] bg-cover bg-center"
+          style={{
+            backgroundImage: `url('${coverUrl || fallbackCover}')`,
+          }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-slate-950/10 to-transparent" />
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.12)_0%,rgba(0,0,0,0.28)_42%,rgba(0,0,0,0.84)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.25),transparent_34%)]" />
+
+        <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
           <Link
             href={`/trips/${tripId}`}
-            className="inline-flex items-center gap-2 rounded-2xl bg-white/85 px-3 py-2 text-xs font-semibold text-slate-900 backdrop-blur hover:bg-white"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/88 text-slate-950 shadow-sm backdrop-blur-xl active:scale-95"
+            aria-label="Wróć"
           >
-            <ChevronLeft size={16} /> Wróć
+            <ChevronLeft size={21} />
           </Link>
-          <div className="rounded-2xl bg-white/85 px-3 py-2 text-xs font-extrabold text-slate-900 backdrop-blur">
+
+          <div className="rounded-full border border-white/25 bg-black/24 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-xl">
             {section}
           </div>
         </div>
 
-        <div className="relative -mt-10 px-4 pb-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="text-lg font-extrabold text-slate-900">{title}</div>
-            <div className="mt-1 text-xs text-slate-500">{metaLine}</div>
+        <div className="absolute bottom-0 left-0 right-0 p-5">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/14 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/85 backdrop-blur-xl">
+            <CalendarDays size={13} />
+            Moka trip
+          </div>
+
+          <h1 className="max-w-[330px] text-[34px] font-black leading-[0.95] tracking-[-0.04em] text-white">
+            {title}
+          </h1>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-full bg-white/16 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-xl">
+              {formatDateRange(meta?.start_date, meta?.end_date)}
+            </span>
+            <span className="rounded-full bg-white/16 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-xl">
+              {meta?.base_currency || "EUR"}
+            </span>
           </div>
         </div>
       </div>

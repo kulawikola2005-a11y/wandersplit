@@ -1,10 +1,13 @@
 "use client";
 
+import { motion } from "framer-motion";
+import { useScroll, useTransform } from "framer-motion";
+
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { MapPin, Plus, Trash2, Route, GripVertical } from "lucide-react";
+import { MapPin, Plus, Trash2, Route, GripVertical, Sparkles } from "lucide-react";
 import {
   DndContext,
   PointerSensor,
@@ -21,8 +24,8 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import BottomNav from "@/components/trip/BottomNav";
 import { geocodeCity } from "@/lib/maps/geocode";
+import { getSmartCover } from "@/lib/trips/getSmartCover";
 
 type LocalStop = {
   id: string;
@@ -43,14 +46,99 @@ function uid() {
     : String(Math.random()).slice(2);
 }
 
+function haversineKm(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number
+) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+
+  const q =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(aLat)) *
+      Math.cos(toRad(bLat)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1 - q));
+  return R * c;
+}
+
+function optimizeStopsNearestNeighbor(stops: LocalStop[]) {
+  const withCoords = stops.filter(
+    (item) => item.lat != null && item.lng != null
+  );
+  const withoutCoords = stops.filter(
+    (item) => item.lat == null || item.lng == null
+  );
+
+  if (withCoords.length <= 2) {
+    return stops.map((item, index) => ({
+      ...item,
+      sort_order: index + 1,
+    }));
+  }
+
+  const remaining = [...withCoords];
+  const ordered: LocalStop[] = [];
+
+  const first = remaining.shift();
+  if (!first) return stops;
+
+  ordered.push(first);
+
+  while (remaining.length > 0) {
+    const current = ordered[ordered.length - 1];
+
+    let bestIndex = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const candidate = remaining[i];
+      const dist = haversineKm(
+        current.lat as number,
+        current.lng as number,
+        candidate.lat as number,
+        candidate.lng as number
+      );
+
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        bestIndex = i;
+      }
+    }
+
+    ordered.push(remaining.splice(bestIndex, 1)[0]);
+  }
+
+  return [...ordered, ...withoutCoords].map((item, index) => ({
+    ...item,
+    sort_order: index + 1,
+  }));
+}
+
+
+function stopMood(index: number, total: number) {
+  if (index === 0) return "Początek podróży i pierwszy kierunek trasy.";
+  if (index === total - 1) return "Ostatni etap wyjazdu i finał podróży.";
+  return "Kolejny ważny punkt na Twojej trasie.";
+}
+
 function SortableStopItem({
   stop,
   index,
+  total,
   busy,
   onRemove,
 }: {
   stop: LocalStop;
   index: number;
+  total: number;
   busy: boolean;
   onRemove: (id: string) => void;
 }) {
@@ -68,51 +156,69 @@ function SortableStopItem({
     transition,
   };
 
+  const image = getSmartCover(stop.name || "travel stop", `${stop.name}-${index}`);
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className={`flex touch-none items-start justify-between rounded-[24px] border border-black/5 bg-white p-3 ${
-        isDragging ? "shadow-[0_18px_40px_rgba(2,6,23,0.12)]" : ""
+      className={`overflow-hidden rounded-[30px] transition-transform duration-300 hover:scale-[1.02] border border-black/5 shadow-[0_25px_60px_rgba(2,6,23,0.12)] ${
+        isDragging ? "scale-[1.01] shadow-[0_24px_50px_rgba(2,6,23,0.18)]" : ""
       }`}
     >
-      <div className="flex min-w-0 gap-3">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-500"
-          aria-hidden="true"
-        >
-          <GripVertical size={18} />
-        </div>
-
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-700">
-          {index + 1}
-        </div>
-
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-neutral-900">
-            {stop.name}
+      <div
+        className="relative min-h-[220px]"
+        style={{
+          backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.15)), url('${image}')`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          transform: "scale(1.05)",
+}}
+      >
+        <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-3">
+          <div
+            {...attributes}
+            {...listeners}
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/18 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] backdrop-blur cursor-grab active:cursor-grabbing"
+            aria-label="Przeciągnij przystanek"
+            title="Przeciągnij przystanek"
+          >
+            <GripVertical size={18} />
           </div>
-          {stop.lat != null && stop.lng != null ? (
-            <div className="mt-1 text-xs text-neutral-400">
-              {stop.lat}, {stop.lng}
+
+          <div className="rounded-full bg-white/18 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] backdrop-blur">
+            Stop {index + 1}
+          </div>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
+          <div className="rounded-[24px] bg-white/10 p-4 backdrop-blur-2xl border border-white/20 shadow-[0_12px_36px_rgba(0,0,0,0.28)]">
+            <div className="text-2xl font-semibold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+              {stop.name}
             </div>
-          ) : (
-            <div className="mt-1 text-xs text-neutral-400">
-              Brak współrzędnych
+
+            <div className="mt-2 text-sm leading-6 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]/80">
+              {stopMood(index, total)}
             </div>
-          )}
+
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <div className="min-w-0 text-xs text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]/70">
+                {stop.lat != null && stop.lng != null
+                  ? `${stop.lat}, ${stop.lng}`
+                  : "Brak współrzędnych"}
+              </div>
+
+              <button
+                onClick={() => onRemove(stop.id)}
+                disabled={busy}
+                className="shrink-0 rounded-2xl border border-white/20 bg-rose-400/15 px-3 py-2 text-sm font-medium text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] disabled:opacity-50"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-
-      <button
-        onClick={() => onRemove(stop.id)}
-        disabled={busy}
-        className="ml-3 shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 disabled:opacity-50"
-      >
-        <Trash2 size={15} />
-      </button>
     </div>
   );
 }
@@ -129,6 +235,21 @@ export default function TripStopsPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+const [showTitle, setShowTitle] = useState(false);
+
+useEffect(() => {
+  const onScroll = () => {
+    setShowTitle(window.scrollY > 120);
+  };
+  window.addEventListener("scroll", onScroll);
+  return () => window.removeEventListener("scroll", onScroll);
+}, []);
+
+
+  const { scrollY } = useScroll();
+  const heroY = useTransform(scrollY, [0, 300], [0, 80]);
+
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -141,6 +262,11 @@ export default function TripStopsPage() {
         tolerance: 8,
       },
     })
+  );
+
+  const heroImage = getSmartCover(
+    items[0]?.name || "travel",
+    `${tripId}-hero`
   );
 
   const stopsWithCoords = useMemo(
@@ -214,6 +340,7 @@ export default function TripStopsPage() {
       saveLocal(next);
       setName("");
       setSheetOpen(false);
+      setMsg("Dodano przystanek.");
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się dodać przystanku.");
@@ -235,6 +362,7 @@ export default function TripStopsPage() {
         }));
 
       saveLocal(filtered);
+      setMsg("Usunięto przystanek.");
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się usunąć przystanku.");
@@ -259,35 +387,57 @@ export default function TripStopsPage() {
     }));
 
     saveLocal(reordered);
+    setMsg("Zmieniono kolejność ręcznie.");
+  }
+
+  function optimizeRoute() {
+    if (items.length < 3) {
+      setMsg("Dodaj co najmniej 3 przystanki, aby zoptymalizować trasę.");
+      return;
+    }
+
+    if (stopsWithCoords < 2) {
+      setMsg("Za mało przystanków z mapą, aby policzyć lepszą kolejność.");
+      return;
+    }
+
+    setBusy(true);
+    setMsg(null);
+
+    try {
+      const optimized = optimizeStopsNearestNeighbor(items);
+      saveLocal(optimized);
+      setMsg("✨ Zoptymalizowano kolejność przystanków.");
+    } catch (e) {
+      console.error(e);
+      setMsg("Nie udało się zoptymalizować trasy.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <main className="min-h-dvh bg-[#F7F7F3] pb-28">
-      <div className="px-4 pt-5">
-        <div className="mx-auto max-w-xl space-y-4">
-          <section className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+    <motion.main
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.5 }}
+    className="min-h-dvh bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] pb-28">
+      <div className="px-4 pt-4">
+        <div className="mx-auto max-w-xl space-y-5">
+          <header className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <div className="bg-[linear-gradient(135deg,#1f2937_0%,#111827_55%,#2f3a4f_100%)] px-5 py-6 text-white">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-white/80">
-                    <Route size={16} />
-                    Trasa podróży
-                  </div>
-                  <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-                    Przystanki
-                  </h1>
-                  <p className="mt-2 text-sm leading-6 text-white/75">
-                    Dodawaj miasta i buduj kolejność wyjazdu.
-                  </p>
-                </div>
-
-                <Link
-                  href={`/trips/${tripId}`}
-                  className="shrink-0 rounded-2xl bg-white/15 px-3 py-2 text-sm font-semibold text-white backdrop-blur"
-                >
-                  Powrót
-                </Link>
+              <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                <MapPin size={16} />
+                Route
               </div>
+
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+                Trasa podróży
+              </h1>
+
+              <p className="mt-2 max-w-md text-sm leading-6 text-white/75">
+                Dodawaj miejsca, ustawiaj kolejność i sprawdzaj przebieg wyjazdu na mapie.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 px-4 py-4">
@@ -300,7 +450,7 @@ export default function TripStopsPage() {
                 </div>
               </div>
 
-              <div className="rounded-[24px] bg-[#F4EEE4] p-4">
+              <div className="rounded-[24px] bg-[#EEF2FF] p-4">
                 <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
                   Z mapą
                 </div>
@@ -309,22 +459,62 @@ export default function TripStopsPage() {
                 </div>
               </div>
             </div>
+          </header>
+
+          <section className="overflow-hidden rounded-[30px] border border-white/40 bg-white/80 backdrop-blur-xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+            <div className="flex items-center justify-between gap-3 px-5 py-4">
+              <div>
+                <div className="text-sm font-semibold text-neutral-900">
+                  Mapa podróży
+                </div>
+                <div className="mt-1 text-sm text-neutral-500">
+                  Podgląd przystanków i przebiegu trasy
+                </div>
+              </div>
+
+              <div className="rounded-full bg-[#f5f7fb] px-3 py-2 text-xs font-semibold text-neutral-600">
+                Mapa
+              </div>
+            </div>
+
+            <div className="h-[260px] w-full">
+              <StopsPreviewMap items={items} />
+            </div>
           </section>
 
-          <StopsPreviewMap items={items} />
-
           <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
-              <Plus size={16} />
-              Nowy przystanek
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-neutral-900">
+                  Przystanki na trasie
+                </div>
+                <div className="text-xs text-neutral-400">
+                  Przytrzymaj ikonę i przeciągnij, aby zmienić kolejność
+                </div>
+              </div>
+
+              <button
+                onClick={optimizeRoute}
+                disabled={busy}
+                className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-neutral-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] shadow-sm disabled:opacity-50"
+              >
+                <Sparkles size={14} />
+                Ułóż trasę
+              </button>
             </div>
+
+            {msg && (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {msg}
+              </div>
+            )}
 
             <div className="mt-4 flex gap-2">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Np. Rome, Paris, Tokyo..."
-                className="w-full rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                className="w-full rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
                 disabled={busy}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") addStop();
@@ -333,17 +523,11 @@ export default function TripStopsPage() {
               <button
                 onClick={addStop}
                 disabled={busy}
-                className="shrink-0 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="shrink-0 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] disabled:opacity-50"
               >
                 Dodaj
               </button>
             </div>
-
-            {msg && (
-              <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {msg}
-              </div>
-            )}
           </section>
 
           {loading ? (
@@ -360,45 +544,35 @@ export default function TripStopsPage() {
                   Zaplanuj pierwsze miejsce podróży
                 </div>
                 <div className="mt-2 text-sm leading-6 text-neutral-500">
-                  Dodaj miasto lub punkt trasy, a pokażemy go na mapie i zbudujemy wizualny przebieg podróży.
+                  Dodaj miasto lub punkt trasy, a ekran zacznie wyglądać jak prawdziwa podróż, a nie tylko lista.
                 </div>
               </div>
             </div>
           ) : (
-            <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-neutral-900">
-                  Lista przystanków
-                </div>
-                <div className="text-xs text-neutral-400">
-                  Przytrzymaj ikonę i przeciągnij
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
+            <section className="space-y-4">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={items.map((item) => item.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <SortableContext
-                    items={items.map((item) => item.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-3">
-                      {items.map((s, index) => (
-                        <SortableStopItem
-                          key={s.id}
-                          stop={s}
-                          index={index}
-                          busy={busy}
-                          onRemove={removeStop}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              </div>
+                  <div className="space-y-4">
+                    {items.map((s, index) => (
+                      <SortableStopItem
+                        key={s.id}
+                        stop={s}
+                        index={index}
+                        total={items.length}
+                        busy={busy}
+                        onRemove={removeStop}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </section>
           )}
         </div>
@@ -406,7 +580,7 @@ export default function TripStopsPage() {
 
       <button
         onClick={() => setSheetOpen(true)}
-        className="fixed bottom-24 right-5 z-50 flex h-14 items-center gap-2 rounded-full bg-neutral-900 px-5 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.96]"
+        className="fixed bottom-28 right-5 z-50 flex h-14 items-center gap-2 rounded-full bg-neutral-900 px-5 text-sm font-semibold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.96]"
       >
         <Plus size={18} />
         Dodaj
@@ -444,7 +618,7 @@ export default function TripStopsPage() {
               <button
                 onClick={addStop}
                 disabled={busy}
-                className="block w-full rounded-[22px] bg-neutral-900 px-4 py-4 text-center font-semibold text-white disabled:opacity-50"
+                className="block w-full rounded-[22px] bg-neutral-900 px-4 py-4 text-center font-semibold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] disabled:opacity-50"
               >
                 {busy ? "Dodawanie..." : "📍 Dodaj przystanek"}
               </button>
@@ -453,7 +627,6 @@ export default function TripStopsPage() {
         </div>
       )}
 
-      <BottomNav tripId={tripId} />
-    </main>
+    </motion.main>
   );
 }

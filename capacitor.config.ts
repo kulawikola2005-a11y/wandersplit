@@ -1,11 +1,11 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: 'com.wandersplit.app',
-  appName: 'WanderSplit',
-  webDir: 'out',
+  appId: "com.wandersplit.app",
+  appName: "WanderSplit",
+  webDir: "out",
   server: {
-    url: 'http://10.0.2.2:3000',
+    url: "http://10.0.2.2:3000",
     cleartext: true,
   },
 };

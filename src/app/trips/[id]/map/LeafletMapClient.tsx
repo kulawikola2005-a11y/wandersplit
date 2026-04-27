@@ -493,27 +493,27 @@ export default function LeafletMapClient({ tripId }: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="hidden rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 shadow-sm sm:block">
+            <div className="hidden rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600 shadow-sm sm:block">
               {routeTopLabel}
             </div>
 
             <button
               onClick={fitRoute}
-              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
             >
               Dopasuj trasę
             </button>
 
             <button
               onClick={goToMyLocation}
-              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
             >
               <LocateFixed className="h-4 w-4" />
             </button>
 
             <Link
               href={`/trips/${tripId}`}
-              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
             >
               Powrót
             </Link>
@@ -524,14 +524,14 @@ export default function LeafletMapClient({ tripId }: Props) {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] p-4">
         <div
           className={cx(
-            "pointer-events-auto mx-auto max-w-5xl overflow-hidden rounded-[28px] border border-white/70 bg-white/95 shadow-[0_-12px_40px_rgba(15,23,42,.16)] backdrop-blur transition-all",
+            "pointer-events-auto mx-auto max-w-5xl overflow-hidden rounded-[30px] border border-white/80 bg-white/92 shadow-[0_-18px_50px_rgba(15,23,42,.18)] backdrop-blur-xl transition-all duration-300",
             sheetOpen ? "max-h-[48vh]" : "max-h-16"
           )}
         >
           <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
             <button
               onClick={() => setSheetOpen((v) => !v)}
-              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
             >
               {sheetOpen ? "Zwiń" : "Rozwiń"}
             </button>
@@ -559,7 +559,7 @@ export default function LeafletMapClient({ tripId }: Props) {
                       className={cx(
                         "flex items-center justify-between gap-3 rounded-2xl border p-3",
                         selectedId === s.id
-                          ? "border-indigo-200 bg-indigo-50"
+                          ? "border-indigo-300 bg-indigo-50 shadow-[0_8px_24px_rgba(79,70,229,0.12)]"
                           : "border-slate-200 bg-white"
                       )}
                     >

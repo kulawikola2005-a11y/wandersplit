@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { CheckCircle2, Circle, ListChecks, Plus, Trash2 } from "lucide-react";
-import BottomNav from "@/components/trip/BottomNav";
 import { getMyTripRole, canEditTrip, type TripRole } from "@/lib/trips/roles";
 import {
   listChecklistItems,
@@ -14,6 +12,17 @@ import {
   clearDoneChecklistItems,
   type ChecklistItem,
 } from "@/lib/trips/sync";
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[24px] border border-black/5 bg-white/80 p-4 backdrop-blur shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+        {label}
+      </div>
+      <div className="mt-2 text-xl font-bold tracking-tight text-neutral-900">{value}</div>
+    </div>
+  );
+}
 
 export default function ChecklistPage() {
   const params = useParams<{ id: string }>();
@@ -125,79 +134,64 @@ export default function ChecklistPage() {
 
   const doneCount = items.filter((item) => item.done).length;
   const progress = items.length ? Math.round((doneCount / items.length) * 100) : 0;
+  const todoCount = items.length - doneCount;
 
   return (
-    <main className="min-h-dvh bg-[#F7F7F3] pb-28">
-      <div className="px-4 pt-5">
-        <div className="mx-auto max-w-xl space-y-4">
-          <section className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+    <main className="min-h-dvh bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] pb-28">
+      <div className="px-4 pt-4">
+        <div className="mx-auto max-w-xl space-y-5">
+          <header className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <div className="bg-[linear-gradient(135deg,#1f2937_0%,#111827_55%,#2f3a4f_100%)] px-5 py-6 text-white">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-white/80">
-                    <ListChecks size={16} />
-                    Lista rzeczy
-                  </div>
-                  <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-                    Checklist
-                  </h1>
-                  <p className="mt-2 text-sm leading-6 text-white/75">
-                    Spakuj wszystko i śledź postęp przed wyjazdem.
-                  </p>
-                </div>
+              <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                <ListChecks size={16} />
+                Checklist
+              </div>
 
-                <Link
-                  href={`/trips/${tripId}`}
-                  className="shrink-0 rounded-2xl bg-white/15 px-3 py-2 text-sm font-semibold text-white backdrop-blur"
-                >
-                  Powrót
-                </Link>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+                Lista przygotowań
+              </h1>
+
+              <p className="mt-2 max-w-md text-sm leading-6 text-white/75">
+                Spakuj rzeczy, odhacz zadania i trzymaj przygotowania pod kontrolą.
+              </p>
+
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-white transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 px-4 py-4">
+            <div className="grid grid-cols-3 gap-3 px-4 py-4">
               <div className="rounded-[24px] bg-[#F8F8F6] p-4">
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+                  Wszystko
+                </div>
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                  {items.length}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] bg-[#EEF2FF] p-4">
                 <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
                   Gotowe
                 </div>
                 <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                  {doneCount}/{items.length}
+                  {doneCount}
                 </div>
               </div>
 
               <div className="rounded-[24px] bg-[#F4EEE4] p-4">
                 <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                  Postęp
+                  Todo
                 </div>
                 <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                  {progress}%
+                  {todoCount}
                 </div>
               </div>
             </div>
-
-            <div className="px-4 pb-4">
-              <div className="rounded-[24px] bg-white p-4 ring-1 ring-black/5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium text-neutral-500">Postęp</div>
-                    <div className="mt-1 text-base font-semibold text-neutral-900">
-                      {doneCount}/{items.length} gotowe
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-[#F8F8F6] px-3 py-2 text-sm font-semibold text-neutral-900">
-                    {progress}%
-                  </div>
-                </div>
-
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-200">
-                  <div
-                    className="h-full rounded-full bg-neutral-900 transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
+          </header>
 
           {!editable && (
             <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -222,7 +216,7 @@ export default function ChecklistPage() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Np. paszport, ładowarka, rezerwacja hotelu..."
-                className="w-full rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                className="w-full rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
                 disabled={!editable || busy}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") onAdd();
@@ -231,7 +225,7 @@ export default function ChecklistPage() {
               <button
                 onClick={onAdd}
                 disabled={!editable || busy}
-                className="shrink-0 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="shrink-0 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
               >
                 Dodaj
               </button>
@@ -306,7 +300,7 @@ export default function ChecklistPage() {
                 {filtered.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-[24px] border border-black/5 bg-white p-3"
+                    className="flex items-center justify-between rounded-[24px] border border-black/5 bg-[#fcfcfd] p-3 shadow-sm"
                   >
                     <button
                       onClick={() => onToggle(item)}
@@ -348,7 +342,6 @@ export default function ChecklistPage() {
         </div>
       </div>
 
-      <BottomNav tripId={tripId} />
     </main>
   );
 }

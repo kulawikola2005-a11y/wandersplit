@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Trash2, Wallet, Users, Receipt, ArrowRightLeft } from "lucide-react";
-import TripHeroPro from "@/components/trip/TripHeroPro";
-import BottomNav from "@/components/trip/BottomNav";
 import { cx } from "@/components/ui/pro";
 import { getMyTripRole, canEditTrip, type TripRole } from "@/lib/trips/roles";
 
@@ -277,8 +276,6 @@ function BudgetInner({ tripId }: { tripId: string }) {
 
   return (
     <main className="min-h-dvh bg-[#F7F7F3] pb-28">
-      <TripHeroPro tripId={tripId} section="Budżet" />
-
       <div className="px-4 pt-4">
         <div className="mx-auto max-w-xl">
           <div className="rounded-[32px] bg-gradient-to-br from-black via-neutral-900 to-neutral-800 p-5 text-white shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
@@ -407,12 +404,12 @@ function BudgetInner({ tripId }: { tripId: string }) {
             </div>
           )}
 
-          <div className="rounded-[24px] border border-black/5 bg-white p-1 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-            <div className="grid grid-cols-3 gap-1">
+          <div className="rounded-[26px] border border-black/5 bg-white/90 p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.06)] backdrop-blur">
+            <div className="grid grid-cols-3 gap-1.5">
               <button
                 onClick={() => setActiveTab("expenses")}
                 className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
+                  "rounded-[20px] px-3 py-3 text-sm font-semibold transition",
                   activeTab === "expenses"
                     ? "bg-neutral-900 text-white"
                     : "text-neutral-500"
@@ -424,7 +421,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
               <button
                 onClick={() => setActiveTab("balances")}
                 className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
+                  "rounded-[20px] px-3 py-3 text-sm font-semibold transition",
                   activeTab === "balances"
                     ? "bg-neutral-900 text-white"
                     : "text-neutral-500"
@@ -447,21 +444,24 @@ function BudgetInner({ tripId }: { tripId: string }) {
             </div>
           </div>
 
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+          <section className="rounded-[30px] border border-black/5 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
             <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
               <Users size={16} />
               Osoby i waluta
             </div>
+            <div className="mt-1 text-sm text-neutral-500">
+              Zarządzaj walutą wyjazdu i uczestnikami wspólnego budżetu.
+            </div>
 
             <div className="mt-4 flex gap-2">
               <input
-                className="w-24 rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                className="w-24 rounded-2xl border border-black/5 bg-[#f8fafc] px-3 py-3 text-sm outline-none transition focus:bg-white"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                 placeholder="EUR"
               />
               <input
-                className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-[#f8fafc] px-3 py-3 text-sm outline-none transition focus:bg-white"
                 value={newPerson}
                 onChange={(e) => setNewPerson(e.target.value)}
                 onKeyDown={(e) => {
@@ -481,7 +481,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
               {people.map((p) => (
                 <div
                   key={p}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-black/5 bg-[#F8F8F6] px-3 py-2 text-sm"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-black/5 bg-[#f8fafc] px-3 py-2 text-sm shadow-sm"
                 >
                   <span className="font-semibold text-neutral-800">{p}</span>
                   <button
@@ -496,12 +496,15 @@ function BudgetInner({ tripId }: { tripId: string }) {
           </section>
 
           {activeTab === "expenses" && (
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+          <section className="rounded-[30px] border border-black/5 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
             <div className="text-sm font-semibold text-neutral-900">Dodaj wydatek</div>
+            <div className="mt-1 text-sm text-neutral-500">
+              Dodaj nowy koszt podróży i od razu podziel go między uczestników.
+            </div>
 
             <div className="mt-4 space-y-3">
               <input
-                className="w-full rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                className="w-full rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Np. kolacja, bilety, hotel"
@@ -509,14 +512,14 @@ function BudgetInner({ tripId }: { tripId: string }) {
 
               <div className="flex gap-2">
                 <input
-                  className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                  className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"
                   placeholder="Kwota"
                 />
                 <select
-                  className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-white px-3 py-3 text-sm outline-none"
+                  className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
                   value={paidBy}
                   onChange={(e) => setPaidBy(e.target.value)}
                 >
@@ -541,7 +544,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
                         key={p}
                         onClick={() => toggleSplit(p)}
                         className={cx(
-                          "rounded-2xl border px-3 py-2 text-sm font-semibold transition",
+                          "rounded-2xl border px-3 py-2.5 text-sm font-semibold transition shadow-sm",
                           active
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-black/5 bg-white text-neutral-700"
@@ -555,7 +558,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
               </div>
 
               <button
-                className="w-full rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white"
+                className="w-full rounded-2xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-white shadow-sm"
                 onClick={addExpense}
               >
                 Dodaj wydatek
@@ -638,8 +641,11 @@ function BudgetInner({ tripId }: { tripId: string }) {
           )}
 
           {activeTab === "expenses" && (
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+          <section className="rounded-[30px] border border-black/5 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
             <div className="text-sm font-semibold text-neutral-900">Wydatki</div>
+            <div className="mt-1 text-sm text-neutral-500">
+              Lista wszystkich dodanych kosztów podróży.
+            </div>
 
             <div className="mt-4 space-y-3">
               {expenses.length === 0 ? (
@@ -650,7 +656,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
                 expenses.map((e) => (
                   <div
                     key={e.id}
-                    className="rounded-[24px] border border-black/5 bg-white p-4"
+                    className="rounded-[26px] border border-black/5 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-4 shadow-sm"
                   >
                     <div className="flex items-start gap-3">
                       <div className="min-w-0 flex-1">
@@ -667,7 +673,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
                       </div>
 
                       <div className="flex flex-col items-end gap-2">
-                        <div className="rounded-2xl bg-[#F8F8F6] px-3 py-1.5 text-sm font-semibold text-neutral-900">
+                        <div className="rounded-2xl bg-[#f5f7fb] px-3 py-1.5 text-sm font-semibold text-neutral-900">
                           {fmt(e.amount, currency)}
                         </div>
                         <button
@@ -687,7 +693,6 @@ function BudgetInner({ tripId }: { tripId: string }) {
         </div>
       </div>
 
-      <BottomNav tripId={tripId} />
     </main>
   );
 }
