@@ -24,19 +24,43 @@ export default function TripCoverPage() {
   async function load() {
     setMsg(null);
 
+    try {
+      const raw = localStorage.getItem("wandersplit:trips");
+      const arr = raw ? JSON.parse(raw) : [];
+      const localTrip = Array.isArray(arr)
+        ? arr.find((t: any) => String(t?.id) === String(tripId))
+        : null;
+
+      if (localTrip) {
+        setTrip({
+          id: String(localTrip.id),
+          title: String(localTrip.title || "Trip"),
+          cover_path: localTrip.cover_path ?? null,
+        });
+
+        const localCover = localStorage.getItem(`wandersplit:cover:${tripId}`);
+        if (localCover) {
+          setCoverUrl(localCover);
+          return;
+        }
+      }
+    } catch {}
+
     const { data, error } = await supabase
       .from("trips")
       .select("id, title, cover_path")
       .eq("id", tripId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error(error);
-      setMsg("Nie udało się wczytać tripa.");
+      setTrip((prev) =>
+        prev ?? { id: tripId, title: "Trip", cover_path: null }
+      );
       return;
     }
 
-    setTrip(data);
+    if (data) setTrip((prev) => data ?? prev);
 
     if (data?.cover_path) {
       try {
@@ -46,7 +70,7 @@ export default function TripCoverPage() {
         console.error(e);
         setCoverUrl(null);
       }
-    } else {
+    } else if (!coverUrl) {
       setCoverUrl(null);
     }
   }
@@ -62,9 +86,18 @@ export default function TripCoverPage() {
     setMsg(null);
 
     try {
-      await uploadTripCover(tripId, file);
-      await load();
-      setMsg("Okładka została wgrana.");
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const dataUrl = String(reader.result || "");
+        if (!dataUrl) return;
+
+        localStorage.setItem(`wandersplit:cover:${tripId}`, dataUrl);
+        setCoverUrl(dataUrl);
+        setMsg("Okładka została zapisana lokalnie.");
+      };
+
+      reader.readAsDataURL(file);
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się wgrać okładki.");

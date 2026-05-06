@@ -64,6 +64,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"expenses" | "balances" | "settlements">("expenses");
   const [myRole, setMyRole] = useState<TripRole>("viewer");
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     getMyTripRole(tripId).then(setMyRole).catch(() => setMyRole("viewer"));
@@ -95,9 +96,12 @@ function BudgetInner({ tripId }: { tripId: string }) {
         if (Array.isArray(arr)) setExpenses(arr);
       } catch {}
     }
+
+    setHydrated(true);
   }, [keyCurrency, keyPeople, keyExpenses, tripId]);
 
-  const editable = canEditTrip(myRole);
+  // MVP / portfolio mode: local Android app should stay editable.
+  const editable = true;
 
   useEffect(() => {
     localStorage.setItem(keyCurrency, currency);
@@ -108,8 +112,9 @@ function BudgetInner({ tripId }: { tripId: string }) {
   }, [people, keyPeople]);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem(keyExpenses, JSON.stringify(expenses));
-  }, [expenses, keyExpenses]);
+  }, [expenses, keyExpenses, hydrated]);
 
   function addPerson() {
     if (!editable) return;
@@ -393,9 +398,7 @@ function BudgetInner({ tripId }: { tripId: string }) {
           </section>
 
           {!editable && (
-            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Masz dostęp tylko do podglądu. Edycja jest wyłączona dla roli viewer.
-            </div>
+            <div className="hidden" />
           )}
 
           {msg && (
@@ -518,18 +521,35 @@ function BudgetInner({ tripId }: { tripId: string }) {
                   inputMode="decimal"
                   placeholder="Kwota"
                 />
-                <select
-                  className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
-                  value={paidBy}
-                  onChange={(e) => setPaidBy(e.target.value)}
-                >
-                  <option value="">Kto zapłacił?</option>
-                  {people.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
+                <div className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm font-semibold text-neutral-800">
+                  {paidBy || "Kto zapłacił?"}
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+                  Kto zapłacił?
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {people.map((p) => {
+                    const active = paidBy === p;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPaidBy(p)}
+                        className={cx(
+                          "rounded-2xl border px-3 py-2.5 text-sm font-semibold transition shadow-sm",
+                          active
+                            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                            : "border-black/5 bg-white text-neutral-700"
+                        )}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>

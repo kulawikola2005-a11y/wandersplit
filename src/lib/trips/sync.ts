@@ -71,6 +71,52 @@ function readChecklistFromLocalStorage(tripId: string): ChecklistItem[] {
   }
 }
 
+function writeChecklistToLocalStorage(tripId: string, items: ChecklistItem[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(`wandersplit:checklist:${tripId}`, JSON.stringify(items));
+}
+
+function updateLocalChecklistItem(id: string, patch: Partial<Pick<ChecklistItem, "text" | "done">>) {
+  if (typeof window === "undefined") return false;
+
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith("wandersplit:checklist:")) continue;
+
+    const tripId = key.replace("wandersplit:checklist:", "");
+    const items = readChecklistFromLocalStorage(tripId);
+    const index = items.findIndex((item) => item.id === id);
+
+    if (index >= 0) {
+      items[index] = { ...items[index], ...patch };
+      writeChecklistToLocalStorage(tripId, items);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function deleteLocalChecklistItem(id: string) {
+  if (typeof window === "undefined") return false;
+
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith("wandersplit:checklist:")) continue;
+
+    const tripId = key.replace("wandersplit:checklist:", "");
+    const items = readChecklistFromLocalStorage(tripId);
+    const next = items.filter((item) => item.id !== id);
+
+    if (next.length !== items.length) {
+      writeChecklistToLocalStorage(tripId, next);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 async function selectChecklistFrom(tableName: string, tripId: string) {
   const { data, error } = await supabase
     .from(tableName)
@@ -142,7 +188,26 @@ export async function listChecklistItems(tripId: string) {
 }
 
 export async function addChecklistItem(tripId: string, text: string) {
-  const userId = await getUserId();
+  let userId = "";
+
+  try {
+    userId = await getUserId();
+  } catch {
+    const items = readChecklistFromLocalStorage(tripId);
+    const next: ChecklistItem[] = [
+      {
+        id: uuid(),
+        trip_id: tripId,
+        user_id: "",
+        text,
+        done: false,
+        created_at: new Date().toISOString(),
+      },
+      ...items,
+    ];
+    writeChecklistToLocalStorage(tripId, next);
+    return;
+  }
 
   let { error } = await supabase.from("checklist_items").insert({
     id: uuid(),
@@ -162,7 +227,21 @@ export async function addChecklistItem(tripId: string, text: string) {
     done: false,
   });
 
-  if (fallback.error) throw fallback.error;
+  if (fallback.error) {
+    const items = readChecklistFromLocalStorage(tripId);
+    const next: ChecklistItem[] = [
+      {
+        id: uuid(),
+        trip_id: tripId,
+        user_id: userId,
+        text,
+        done: false,
+        created_at: new Date().toISOString(),
+      },
+      ...items,
+    ];
+    writeChecklistToLocalStorage(tripId, next);
+  }
 }
 
 export async function updateChecklistItem(
@@ -173,7 +252,7 @@ export async function updateChecklistItem(
   if (!error) return;
 
   const fallback = await supabase.from("trip_checklist_items").update(patch).eq("id", id);
-  if (fallback.error) throw fallback.error;
+  if (fallback.error) updateLocalChecklistItem(id, patch);
 }
 
 export async function deleteChecklistItem(id: string) {
@@ -181,7 +260,7 @@ export async function deleteChecklistItem(id: string) {
   if (!error) return;
 
   const fallback = await supabase.from("trip_checklist_items").delete().eq("id", id);
-  if (fallback.error) throw fallback.error;
+  if (fallback.error) deleteLocalChecklistItem(id);
 }
 
 export async function clearDoneChecklistItems(tripId: string) {
@@ -199,7 +278,10 @@ export async function clearDoneChecklistItems(tripId: string) {
     .eq("trip_id", tripId)
     .eq("done", true);
 
-  if (fallback.error) throw fallback.error;
+  if (fallback.error) {
+    const items = readChecklistFromLocalStorage(tripId).filter((item) => !item.done);
+    writeChecklistToLocalStorage(tripId, items);
+  }
 }
 
 export async function listBudgetPeople(tripId: string) {

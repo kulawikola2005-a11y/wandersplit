@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import type { LatLngExpression } from "leaflet";
-import { useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  CircleMarker,
+  Tooltip,
+  Polyline,
+  useMap,
+} from "react-leaflet";
 
 type StopLike = {
   id: string;
@@ -11,27 +17,6 @@ type StopLike = {
   lat: number | null;
   lng: number | null;
 };
-
-const MapContainer = dynamic(
-  () => import("react-leaflet").then((m) => m.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((m) => m.TileLayer),
-  { ssr: false }
-);
-const CircleMarker = dynamic(
-  () => import("react-leaflet").then((m) => m.CircleMarker),
-  { ssr: false }
-);
-const Tooltip = dynamic(
-  () => import("react-leaflet").then((m) => m.Tooltip),
-  { ssr: false }
-);
-const Polyline = dynamic(
-  () => import("react-leaflet").then((m) => m.Polyline),
-  { ssr: false }
-);
 
 function FitToPoints({ points }: { points: [number, number][] }) {
   const map = useMap();
@@ -250,11 +235,12 @@ export default function StopsPreviewMap({ items }: { items: StopLike[] }) {
             center={center}
             zoom={5}
             scrollWheelZoom={false}
+            attributionControl={false}
             className="h-full w-full"
           >
             <TileLayer
-              attribution="&copy; OpenStreetMap contributors"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+              subdomains={["a", "b", "c", "d"]}
             />
 
             <FitToPoints points={points.map((p) => p.position)} />

@@ -172,18 +172,18 @@ function SortableStopItem({
           backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.15)), url('${image}')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          transform: "scale(1.05)",
+          transform: isDragging ? "scale(1.02)" : "scale(1.05)",
 }}
       >
         <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-3">
           <div
             {...attributes}
             {...listeners}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/18 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] backdrop-blur cursor-grab active:cursor-grabbing"
+            className="flex h-14 w-14 touch-none items-center justify-center rounded-2xl border border-white/20 bg-white/24 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] backdrop-blur cursor-grab active:cursor-grabbing"
             aria-label="Przeciągnij przystanek"
             title="Przeciągnij przystanek"
           >
-            <GripVertical size={18} />
+            <GripVertical size={24} />
           </div>
 
           <div className="rounded-full bg-white/18 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] backdrop-blur">
@@ -253,13 +253,13 @@ useEffect(() => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 4,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 120,
-        tolerance: 8,
+        delay: 180,
+        tolerance: 6,
       },
     })
   );

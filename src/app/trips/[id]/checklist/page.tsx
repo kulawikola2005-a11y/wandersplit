@@ -24,6 +24,39 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function uid() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : String(Date.now()) + Math.random();
+}
+
+function checklistKey(tripId: string) {
+  return `wandersplit:checklist:${tripId}`;
+}
+
+function readLocalChecklist(tripId: string): ChecklistItem[] {
+  try {
+    const raw = localStorage.getItem(checklistKey(tripId));
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return [];
+
+    return arr.map((item: any) => ({
+      id: String(item.id ?? uid()),
+      trip_id: tripId,
+      user_id: String(item.user_id ?? ""),
+      text: String(item.text ?? item.title ?? ""),
+      done: Boolean(item.done ?? item.checked ?? item.status === "done"),
+      created_at: String(item.created_at ?? item.createdAt ?? new Date().toISOString()),
+    })).filter((item) => item.text.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalChecklist(tripId: string, items: ChecklistItem[]) {
+  localStorage.setItem(checklistKey(tripId), JSON.stringify(items));
+}
+
 export default function ChecklistPage() {
   const params = useParams<{ id: string }>();
   const tripId = useMemo(() => String(params?.id || ""), [params]);
@@ -36,17 +69,15 @@ export default function ChecklistPage() {
   const [filter, setFilter] = useState<"all" | "todo" | "done">("all");
   const [msg, setMsg] = useState<string | null>(null);
 
-  const editable = canEditTrip(myRole);
+  // MVP / portfolio mode: local Android app should stay editable.
+  const editable = true;
 
   async function load() {
     setLoading(true);
     try {
-      const [role, rows] = await Promise.all([
-        getMyTripRole(tripId),
-        listChecklistItems(tripId),
-      ]);
-      setMyRole(role);
-      setItems(rows);
+      setMyRole("owner");
+      setItems(readLocalChecklist(tripId));
+      setMsg(null);
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się wczytać checklisty.");
@@ -55,13 +86,13 @@ export default function ChecklistPage() {
     }
   }
 
+
   useEffect(() => {
     if (!tripId) return;
     load();
   }, [tripId]);
 
   async function onAdd() {
-    if (!editable) return;
     const value = text.trim();
     if (!value) {
       setMsg("Wpisz element checklisty.");
@@ -71,61 +102,92 @@ export default function ChecklistPage() {
     try {
       setBusy(true);
       setMsg(null);
-      await addChecklistItem(tripId, value);
+
+      const next: ChecklistItem[] = [
+        {
+          id: uid(),
+          trip_id: tripId,
+          user_id: "",
+          text: value,
+          done: false,
+          created_at: new Date().toISOString(),
+        },
+        ...items,
+      ];
+
+      setItems(next);
+      writeLocalChecklist(tripId, next);
       setText("");
-      await load();
+      setFilter("all");
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się dodać elementu.");
     } finally {
       setBusy(false);
+      setLoading(false);
     }
   }
 
+
   async function onToggle(item: ChecklistItem) {
-    if (!editable) return;
     try {
       setBusy(true);
       setMsg(null);
-      await updateChecklistItem(item.id, { done: !item.done });
-      await load();
+
+      const next = items.map((x) =>
+        x.id === item.id ? { ...x, done: !x.done } : x
+      );
+
+      setItems(next);
+      writeLocalChecklist(tripId, next);
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się zmienić statusu.");
     } finally {
       setBusy(false);
+      setLoading(false);
     }
   }
 
+
   async function onDelete(id: string) {
-    if (!editable) return;
     try {
       setBusy(true);
       setMsg(null);
-      await deleteChecklistItem(id);
-      await load();
+
+      const next = items.filter((item) => item.id !== id);
+      setItems(next);
+      writeLocalChecklist(tripId, next);
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się usunąć elementu.");
     } finally {
       setBusy(false);
+      setLoading(false);
     }
   }
 
+
   async function onClearDone() {
-    if (!editable) return;
     try {
       setBusy(true);
       setMsg(null);
-      await clearDoneChecklistItems(tripId);
-      await load();
+
+      const next = items.filter((item) => !item.done);
+      setItems(next);
+      writeLocalChecklist(tripId, next);
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się wyczyścić ukończonych.");
     } finally {
       setBusy(false);
+      setLoading(false);
     }
   }
+
 
   const filtered = items.filter((item) => {
     if (filter === "all") return true;
@@ -194,9 +256,7 @@ export default function ChecklistPage() {
           </header>
 
           {!editable && (
-            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Masz dostęp tylko do podglądu. Edycja jest wyłączona dla roli viewer.
-            </div>
+            <div className="hidden" />
           )}
 
           {msg && (
@@ -300,37 +360,47 @@ export default function ChecklistPage() {
                 {filtered.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-[24px] border border-black/5 bg-[#fcfcfd] p-3 shadow-sm"
+                    className={
+                      item.done
+                        ? "group flex items-center justify-between rounded-[26px] border border-emerald-100 bg-emerald-50/45 p-3 shadow-sm transition duration-200"
+                        : "group flex items-center justify-between rounded-[26px] border border-black/5 bg-[#fcfcfd] p-3 shadow-sm transition duration-200 active:scale-[0.99]"
+                    }
                   >
-                    <button
-                      onClick={() => onToggle(item)}
-                      disabled={!editable || busy}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:opacity-50"
-                    >
-                      <div className="shrink-0 text-neutral-700">
-                        {item.done ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-                      </div>
+                    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[22px] p-1 text-left">
+                      <button
+                        type="button"
+                        onClick={() => onToggle(item)}
+                        disabled={!editable || busy}
+                        className={
+                          item.done
+                            ? "grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_22px_rgba(16,185,129,0.24)] active:scale-[0.96]"
+                            : "grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-black/8 bg-white text-neutral-400 shadow-sm active:scale-[0.96]"
+                        }
+                      >
+                        {item.done ? <CheckCircle2 size={21} /> : <Circle size={21} />}
+                      </button>
 
                       <div className="min-w-0">
                         <div
                           className={
                             item.done
-                              ? "truncate text-sm text-neutral-500 line-through"
+                              ? "truncate text-sm font-semibold text-emerald-900/65 line-through decoration-emerald-700/40"
                               : "truncate text-sm font-semibold text-neutral-900"
                           }
                         >
                           {item.text}
                         </div>
-                        <div className="mt-1 text-xs text-neutral-500">
-                          {item.done ? "Gotowe" : "Do zrobienia"}
+                        <div className={item.done ? "mt-1 text-xs font-medium text-emerald-700/70" : "mt-1 text-xs text-neutral-500"}>
+                          {item.done ? "Gotowe" : "Kliknij kółko, aby odhaczyć"}
                         </div>
                       </div>
-                    </button>
+                    </div>
 
                     <button
+                      type="button"
                       onClick={() => onDelete(item.id)}
                       disabled={!editable || busy}
-                      className="ml-3 shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 disabled:opacity-50"
+                      className="ml-3 grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-rose-100 bg-rose-50 text-rose-600 transition active:scale-[0.96] disabled:opacity-50"
                     >
                       <Trash2 size={15} />
                     </button>

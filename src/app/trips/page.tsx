@@ -40,6 +40,17 @@ function formatDateRange(start?: string, end?: string) {
   return start || end || "Brak dat";
 }
 
+function isValidTrip(t: any): t is Trip {
+  return Boolean(
+    t &&
+    typeof t === "object" &&
+    typeof t.id === "string" &&
+    typeof t.title === "string" &&
+    t.title.trim().length > 0 &&
+    !t.title.includes("@")
+  );
+}
+
 export default function TripsPage() {
   const pathname = usePathname();
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -67,7 +78,7 @@ export default function TripsPage() {
         try {
           const lastRaw = localStorage.getItem("wandersplit:lastTrip");
           const lastTrip = lastRaw ? JSON.parse(lastRaw) : null;
-          if (lastTrip?.id) {
+          if (isValidTrip(lastTrip)) {
             localTrips = [lastTrip];
             localStorage.setItem("wandersplit:trips", JSON.stringify(localTrips));
           }
@@ -81,11 +92,11 @@ export default function TripsPage() {
       const mergedMap = new Map<string, Trip>();
 
       for (const t of localTrips) {
-        if (t?.id) mergedMap.set(String(t.id), t);
+        if (isValidTrip(t)) mergedMap.set(String(t.id), t);
       }
 
       for (const t of dbTrips) {
-        if (t?.id) mergedMap.set(String(t.id), t);
+        if (isValidTrip(t)) mergedMap.set(String(t.id), t);
       }
 
       const merged = Array.from(mergedMap.values()).sort((a, b) => {
@@ -143,7 +154,11 @@ export default function TripsPage() {
 
     const local = JSON.parse(localStorage.getItem("wandersplit:trips") || "[]");
 
-    localStorage.setItem("wandersplit:trips", JSON.stringify([trip, ...local]));
+    const nextTrips = [trip, ...local.filter((t: any) => String(t?.id) !== String(id))];
+
+    localStorage.setItem("wandersplit:trips", JSON.stringify(nextTrips));
+    localStorage.setItem("wandersplit:lastTrip", JSON.stringify(trip));
+
     window.location.href = `/trips/${id}`;
   }
 
@@ -159,15 +174,15 @@ export default function TripsPage() {
 
   return (
     <main className="min-h-dvh bg-[radial-gradient(circle_at_top,rgba(224,231,255,0.6)_0%,#f8fafc_40%,#eef2f7_100%)] pb-32">
-      <section className="relative overflow-hidden px-4 pb-8 pt-5">
+      <section className="relative overflow-hidden px-4 pb-5 pt-5">
         <div className="mx-auto max-w-[430px]">
-          <div className="relative overflow-hidden rounded-[32px] border border-white/60 bg-[linear-gradient(135deg,#172033_0%,#24324a_52%,#4b3b68_100%)] px-5 pb-4 pt-4 text-white shadow-[0_30px_80px_rgba(15,23,42,0.24)]">
-            <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-            <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-indigo-400/10 blur-3xl" />
+          <div className="relative overflow-hidden rounded-[34px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.82)_0%,rgba(244,240,255,0.92)_45%,rgba(236,233,255,0.96)_100%)] px-5 pb-5 pt-5 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] backdrop-blur-2xl">
+            <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-indigo-200/45 blur-3xl" />
+            <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-violet-200/40 blur-3xl" />
 
             <div className="relative flex items-start justify-between gap-6">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80 backdrop-blur">
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm">
                   <Sparkles size={14} />
                   Moka
                 </div>
@@ -176,34 +191,26 @@ export default function TripsPage() {
                   Moje podróże pod kontrolą
                 </h1>
 
-                <p className="mt-3 max-w-[280px] text-sm leading-6 text-white/78">
+                <p className="mt-3 max-w-[280px] text-sm leading-6 text-slate-500">
                   Planuj trasy, zapisuj miejsca, ogarniaj budżet i miej cały wyjazd w jednej aplikacji.
                 </p>
               </div>
 
               <button
                 onClick={() => setOpen(true)}
-                className="shrink-0 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:scale-[1.02] active:scale-[0.98]"
+                className="shrink-0 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] transition hover:scale-[1.02] active:scale-[0.98]"
               >
                 Nowy
               </button>
             </div>
 
-            <div className="relative mt-6 grid grid-cols-2 gap-2.5">
-              <div className="rounded-[24px] border border-white/10 bg-white/10 p-6 backdrop-blur">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80">
-                  Trips
-                </div>
-                <div className="mt-2 text-[28px] font-bold">{totalTrips}</div>
-                <div className="mt-1 text-xs text-white/65">Twoje zapisane podróże</div>
+            <div className="relative mt-5 flex flex-wrap items-center gap-2">
+              <div className="rounded-full border border-black/5 bg-white/80 px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm backdrop-blur">
+                🌍 {totalTrips} {totalTrips === 1 ? "podróż" : "podróże"}
               </div>
 
-              <div className="rounded-[24px] border border-white/10 bg-white/10 p-6 backdrop-blur">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80">
-                  Next
-                </div>
-                <div className="mt-2 line-clamp-1 text-lg font-bold">{upcomingLabel}</div>
-                <div className="mt-1 text-xs text-white/65">Najbliższy kierunek</div>
+              <div className="max-w-full rounded-full border border-black/5 bg-white/80 px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm backdrop-blur">
+                ✈️ Next: <span className="text-slate-900">{upcomingLabel}</span>
               </div>
             </div>
           </div>
