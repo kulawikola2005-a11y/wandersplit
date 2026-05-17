@@ -142,59 +142,6 @@ function ProgressRing({
         {clamped === 0 ? "" : clamped === 50 ? "½" : "✓"}
       </span>
 
-      {stopPickerOpen && (
-        <div className="fixed inset-0 z-[9999]" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            aria-label="Zamknij wybór miejsca"
-            onClick={() => setStopPickerOpen(false)}
-            className="absolute inset-0 bg-black/35 backdrop-blur-sm"
-          />
-
-          <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-[430px] rounded-t-[34px] bg-[#FCFCFA] p-5 shadow-[0_-20px_60px_rgba(15,23,42,0.22)]">
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-neutral-300" />
-
-            <div className="mb-4">
-              <div className="text-lg font-bold tracking-tight text-neutral-900">
-                Wybierz miejsce
-              </div>
-              <div className="mt-1 text-sm text-neutral-500">
-                Punkt planu zostanie przypisany do wybranego przystanku.
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedStopId("");
-                  setStopPickerOpen(false);
-                }}
-                className={selectedStopId === "" ? "flex w-full items-center justify-between rounded-[22px] bg-neutral-900 px-4 py-4 text-left text-sm font-semibold text-white" : "flex w-full items-center justify-between rounded-[22px] border border-black/5 bg-white px-4 py-4 text-left text-sm font-semibold text-neutral-800"}
-              >
-                <span>Bez miejsca</span>
-                <span>{selectedStopId === "" ? "✓" : ""}</span>
-              </button>
-
-              {stops.map((stop, index) => (
-                <button
-                  key={stop.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedStopId(stop.id);
-                    setStopPickerOpen(false);
-                  }}
-                  className={selectedStopId === stop.id ? "flex w-full items-center justify-between rounded-[22px] bg-neutral-900 px-4 py-4 text-left text-sm font-semibold text-white" : "flex w-full items-center justify-between rounded-[22px] border border-black/5 bg-white px-4 py-4 text-left text-sm font-semibold text-neutral-800"}
-                >
-                  <span className="truncate">{index + 1}. {stop.name}</span>
-                  <span>{selectedStopId === stop.id ? "✓" : ""}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
@@ -470,7 +417,6 @@ function PlanInner({ tripId }: { tripId: string }) {
   const [items, setItems] = useState<Item[]>([]);
   const [stops, setStops] = useState<StopOption[]>([]);
   const [selectedStopId, setSelectedStopId] = useState("");
-  const [stopPickerOpen, setStopPickerOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | Status>("all");
 
   const [open, setOpen] = useState(false);

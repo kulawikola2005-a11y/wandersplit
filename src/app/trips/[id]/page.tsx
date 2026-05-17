@@ -517,50 +517,69 @@ className="ws-card ws-lift block overflow-hidden rounded-[28px] p-5 transition a
                       return (
                         <div
                           key={`${label}-${index}`}
-                          className="min-w-[260px] max-w-[260px] snap-start overflow-hidden rounded-[28px] border border-black/5 shadow-[0_14px_34px_rgba(15,23,42,0.10)]"
-                          style={{
-                            backgroundImage: `linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0.14)), url('${image}')`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
+                          className="min-w-[285px] max-w-[285px] snap-start overflow-hidden rounded-[34px] border border-violet-100 bg-[linear-gradient(180deg,#ffffff_0%,#f5f3ff_100%)] p-3 shadow-[0_20px_50px_rgba(139,92,246,0.14)] transition duration-300 active:scale-[0.98]"
                         >
-                          <div className="px-4 pb-4 pt-24">
-                            <div className="ws-chip inline-block text-white">
+                          <div
+                            className="relative h-[190px] overflow-hidden rounded-[28px] bg-cover bg-center"
+                            style={{
+                              backgroundImage: `linear-gradient(to top, rgba(15,23,42,0.38), rgba(15,23,42,0.02)), url('${image}')`,
+                            }}
+                          >
+                            <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-violet-700 shadow-sm backdrop-blur">
                               Stop {index + 1}
                             </div>
+                          </div>
 
-                            <p className="mt-3 text-2xl font-semibold tracking-tight text-white">
+                          <div className="px-2 pb-2 pt-4">
+                            <p className="text-[24px] font-extrabold leading-tight tracking-tight text-slate-950">
                               {label}
                             </p>
 
-                            <p className="mt-2 text-sm leading-6 text-white/80">
+                            <p className="mt-2 text-sm leading-6 text-slate-500">
                               {index === 0
                                 ? "Początek Twojej podróży."
                                 : index === stopsData.length - 1
                                 ? "Finał trasy i ostatni etap wyjazdu."
                                 : "Kolejny punkt na trasie i część planu podróży."}
                             </p>
+
+                            <div className="mt-4 flex items-center justify-between">
+                              <div className="rounded-full bg-violet-100 px-3 py-1.5 text-xs font-bold text-violet-700">
+                                📍 Przystanek
+                              </div>
+
+                              <div className="rounded-full bg-slate-900 px-3.5 py-2 text-xs font-bold text-white shadow-sm">
+                                Otwórz
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
 
-                  <div className="ws-card rounded-[24px] px-4 py-3">
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
-                        Route overview
+                  <div className="mt-5 flex items-center justify-between gap-4 rounded-[28px] border border-violet-100 bg-[linear-gradient(135deg,#ffffff_0%,#f6f3ff_100%)] px-5 py-4 shadow-[0_14px_34px_rgba(139,92,246,0.10)]">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-700 shadow-inner">
+                        ✨
                       </div>
-                      <div className="mt-1 text-sm text-neutral-700">
-                        Łącznie zapisanych przystanków: {stops}
+
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-400">
+                          Route overview
+                        </div>
+
+                        <div className="mt-1 text-[15px] font-semibold tracking-tight text-slate-900">
+                          Łącznie zapisanych przystanków: {stops}
+                        </div>
                       </div>
                     </div>
 
                     <Link
                       href={`/trips/${tripId}/stops`}
-                      className="rounded-2xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white"
+                      className="shrink-0 rounded-full bg-[linear-gradient(135deg,#111827_0%,#312e81_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(49,46,129,0.28)] transition hover:scale-[1.03] active:scale-[0.98]"
                     >
-                      Zobacz
+                      Zobacz →
                     </Link>
                   </div>
                 </div>
