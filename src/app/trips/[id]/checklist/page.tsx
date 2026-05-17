@@ -34,6 +34,28 @@ function checklistKey(tripId: string) {
   return `wandersplit:checklist:${tripId}`;
 }
 
+type StopOption = {
+  id: string;
+  name: string;
+};
+
+function readLocalStops(tripId: string): StopOption[] {
+  try {
+    const raw = localStorage.getItem(`wandersplit:stops:${tripId}`);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return [];
+
+    return arr
+      .map((item: any, index: number) => ({
+        id: String(item.id ?? `stop-${index}`),
+        name: String(item.name ?? item.city ?? `Przystanek ${index + 1}`),
+      }))
+      .filter((item) => item.name.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
 function readLocalChecklist(tripId: string): ChecklistItem[] {
   try {
     const raw = localStorage.getItem(checklistKey(tripId));
@@ -47,7 +69,8 @@ function readLocalChecklist(tripId: string): ChecklistItem[] {
       text: String(item.text ?? item.title ?? ""),
       done: Boolean(item.done ?? item.checked ?? item.status === "done"),
       created_at: String(item.created_at ?? item.createdAt ?? new Date().toISOString()),
-    })).filter((item) => item.text.trim().length > 0);
+      stop_id: String(item.stop_id ?? item.stopId ?? ""),
+    } as ChecklistItem & { stop_id?: string })).filter((item) => item.text.trim().length > 0);
   } catch {
     return [];
   }
@@ -62,6 +85,9 @@ export default function ChecklistPage() {
   const tripId = useMemo(() => String(params?.id || ""), [params]);
 
   const [items, setItems] = useState<ChecklistItem[]>([]);
+  const [stops, setStops] = useState<StopOption[]>([]);
+  const [selectedStopId, setSelectedStopId] = useState("");
+  const [stopPickerOpen, setStopPickerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [myRole, setMyRole] = useState<TripRole>("viewer");
@@ -76,6 +102,7 @@ export default function ChecklistPage() {
     setLoading(true);
     try {
       setMyRole("owner");
+      setStops(readLocalStops(tripId));
       setItems(readLocalChecklist(tripId));
       setMsg(null);
     } catch (e) {
@@ -111,7 +138,8 @@ export default function ChecklistPage() {
           text: value,
           done: false,
           created_at: new Date().toISOString(),
-        },
+          stop_id: selectedStopId,
+        } as ChecklistItem & { stop_id?: string },
         ...items,
       ];
 
@@ -194,6 +222,34 @@ export default function ChecklistPage() {
     return filter === "done" ? item.done : !item.done;
   });
 
+  function stopName(stopId?: string) {
+    if (!stopId) return "Bez przystanku";
+    return stops.find((stop) => stop.id === stopId)?.name || "Przystanek";
+  }
+
+  const groupedItems = useMemo(() => {
+    const groups = new Map<string, ChecklistItem[]>();
+
+    for (const item of filtered) {
+      const stopId = String((item as ChecklistItem & { stop_id?: string }).stop_id || "");
+      const key = stopId || "none";
+      groups.set(key, [...(groups.get(key) || []), item]);
+    }
+
+    const ordered = [
+      ...stops.map((stop) => stop.id),
+      "none",
+    ];
+
+    return ordered
+      .map((key) => ({
+        key,
+        title: key === "none" ? "Bez przystanku" : stopName(key),
+        items: groups.get(key) || [],
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [filtered, stops]);
+
   const doneCount = items.filter((item) => item.done).length;
   const progress = items.length ? Math.round((doneCount / items.length) * 100) : 0;
   const todoCount = items.length - doneCount;
@@ -271,7 +327,24 @@ export default function ChecklistPage() {
               Dodaj element
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                Dodaj do miejsca
+              </label>
+
+              <button
+                type="button"
+                onClick={() => setStopPickerOpen(true)}
+                className="flex w-full items-center justify-between rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-left text-sm font-semibold text-neutral-800 shadow-sm active:scale-[0.99]"
+              >
+                <span className="truncate">
+                  📍 {selectedStopId ? stopName(selectedStopId) : "Bez przystanku"}
+                </span>
+                <span className="text-neutral-400">Zmień</span>
+              </button>
+            </div>
+
+            <div className="mt-3 flex gap-2">
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -356,54 +429,74 @@ export default function ChecklistPage() {
                 Elementy checklisty
               </div>
 
-              <div className="mt-4 space-y-3">
-                {filtered.map((item) => (
-                  <div
-                    key={item.id}
-                    className={
-                      item.done
-                        ? "group flex items-center justify-between rounded-[26px] border border-emerald-100 bg-emerald-50/45 p-3 shadow-sm transition duration-200"
-                        : "group flex items-center justify-between rounded-[26px] border border-black/5 bg-[#fcfcfd] p-3 shadow-sm transition duration-200 active:scale-[0.99]"
-                    }
-                  >
-                    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[22px] p-1 text-left">
-                      <button
-                        type="button"
-                        onClick={() => onToggle(item)}
-                        disabled={!editable || busy}
-                        className={
-                          item.done
-                            ? "grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_22px_rgba(16,185,129,0.24)] active:scale-[0.96]"
-                            : "grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-black/8 bg-white text-neutral-400 shadow-sm active:scale-[0.96]"
-                        }
-                      >
-                        {item.done ? <CheckCircle2 size={21} /> : <Circle size={21} />}
-                      </button>
-
-                      <div className="min-w-0">
-                        <div
-                          className={
-                            item.done
-                              ? "truncate text-sm font-semibold text-emerald-900/65 line-through decoration-emerald-700/40"
-                              : "truncate text-sm font-semibold text-neutral-900"
-                          }
-                        >
-                          {item.text}
+              <div className="mt-4 space-y-5">
+                {groupedItems.map((group) => (
+                  <div key={group.key} className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-sm">
+                        📍
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-neutral-900">
+                          {group.title}
                         </div>
-                        <div className={item.done ? "mt-1 text-xs font-medium text-emerald-700/70" : "mt-1 text-xs text-neutral-500"}>
-                          {item.done ? "Gotowe" : "Kliknij kółko, aby odhaczyć"}
+                        <div className="text-xs text-neutral-500">
+                          {group.items.length} {group.items.length === 1 ? "zadanie" : "zadania"}
                         </div>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => onDelete(item.id)}
-                      disabled={!editable || busy}
-                      className="ml-3 grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-rose-100 bg-rose-50 text-rose-600 transition active:scale-[0.96] disabled:opacity-50"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                    <div className="space-y-3">
+                      {group.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className={
+                            item.done
+                              ? "group flex items-center justify-between rounded-[26px] border border-emerald-100 bg-emerald-50/45 p-3 shadow-sm transition duration-200"
+                              : "group flex items-center justify-between rounded-[26px] border border-black/5 bg-[#fcfcfd] p-3 shadow-sm transition duration-200 active:scale-[0.99]"
+                          }
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[22px] p-1 text-left">
+                            <button
+                              type="button"
+                              onClick={() => onToggle(item)}
+                              disabled={!editable || busy}
+                              className={
+                                item.done
+                                  ? "grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_22px_rgba(16,185,129,0.24)] active:scale-[0.96]"
+                                  : "grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-black/8 bg-white text-neutral-400 shadow-sm active:scale-[0.96]"
+                              }
+                            >
+                              {item.done ? <CheckCircle2 size={21} /> : <Circle size={21} />}
+                            </button>
+
+                            <div className="min-w-0">
+                              <div
+                                className={
+                                  item.done
+                                    ? "truncate text-sm font-semibold text-emerald-900/65 line-through decoration-emerald-700/40"
+                                    : "truncate text-sm font-semibold text-neutral-900"
+                                }
+                              >
+                                {item.text}
+                              </div>
+                              <div className={item.done ? "mt-1 text-xs font-medium text-emerald-700/70" : "mt-1 text-xs text-neutral-500"}>
+                                {item.done ? "Gotowe" : "Kliknij kółko, aby odhaczyć"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => onDelete(item.id)}
+                            disabled={!editable || busy}
+                            className="ml-3 grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-rose-100 bg-rose-50 text-rose-600 transition active:scale-[0.96] disabled:opacity-50"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -411,6 +504,60 @@ export default function ChecklistPage() {
           )}
         </div>
       </div>
+
+
+      {stopPickerOpen && (
+        <div className="fixed inset-0 z-[120]">
+          <button
+            type="button"
+            aria-label="Zamknij wybór miejsca"
+            onClick={() => setStopPickerOpen(false)}
+            className="absolute inset-0 bg-black/35 backdrop-blur-sm"
+          />
+
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-[34px] bg-[#FCFCFA] p-5 shadow-[0_-20px_60px_rgba(15,23,42,0.22)]">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-neutral-300" />
+
+            <div className="mb-4">
+              <div className="text-lg font-bold tracking-tight text-neutral-900">
+                Wybierz miejsce
+              </div>
+              <div className="mt-1 text-sm text-neutral-500">
+                Zadanie zostanie przypisane do wybranego przystanku.
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStopId("");
+                  setStopPickerOpen(false);
+                }}
+                className={selectedStopId === "" ? "flex w-full items-center justify-between rounded-[22px] bg-neutral-900 px-4 py-4 text-left text-sm font-semibold text-white" : "flex w-full items-center justify-between rounded-[22px] border border-black/5 bg-white px-4 py-4 text-left text-sm font-semibold text-neutral-800"}
+              >
+                <span>Bez przystanku</span>
+                <span>{selectedStopId === "" ? "✓" : ""}</span>
+              </button>
+
+              {stops.map((stop, index) => (
+                <button
+                  key={stop.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStopId(stop.id);
+                    setStopPickerOpen(false);
+                  }}
+                  className={selectedStopId === stop.id ? "flex w-full items-center justify-between rounded-[22px] bg-neutral-900 px-4 py-4 text-left text-sm font-semibold text-white" : "flex w-full items-center justify-between rounded-[22px] border border-black/5 bg-white px-4 py-4 text-left text-sm font-semibold text-neutral-800"}
+                >
+                  <span className="truncate">{index + 1}. {stop.name}</span>
+                  <span>{selectedStopId === stop.id ? "✓" : ""}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
     </main>
   );

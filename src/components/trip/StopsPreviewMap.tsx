@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { LatLngExpression } from "leaflet";
+import { divIcon, type LatLngExpression } from "leaflet";
 import {
   MapContainer,
   TileLayer,
-  CircleMarker,
+  Marker,
   Tooltip,
   Polyline,
   useMap,
@@ -250,11 +250,33 @@ export default function StopsPreviewMap({ items }: { items: StopLike[] }) {
             ) : null}
 
             {points.map((point, index) => (
-              <CircleMarker key={point.id} center={point.position} radius={7} pathOptions={{ weight: 2 }}>
-                <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+              <Marker
+                key={point.id}
+                position={point.position}
+                icon={divIcon({
+                  className: "",
+                  html: `<div style="
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 999px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: linear-gradient(135deg,#111827,#4f46e5);
+                    color: white;
+                    font-size: 13px;
+                    font-weight: 800;
+                    border: 3px solid rgba(255,255,255,0.95);
+                    box-shadow: 0 12px 28px rgba(15,23,42,0.28);
+                  ">${index + 1}</div>`,
+                  iconSize: [34, 34],
+                  iconAnchor: [17, 17],
+                })}
+              >
+                <Tooltip direction="top" offset={[0, -12]} opacity={1}>
                   {index + 1}. {point.name}
                 </Tooltip>
-              </CircleMarker>
+              </Marker>
             ))}
           </MapContainer>
 

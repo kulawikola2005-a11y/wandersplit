@@ -31,6 +31,12 @@ type Item = {
   tag: Tag;
   day: string;
   createdAt: string;
+  stop_id?: string;
+};
+
+type StopOption = {
+  id: string;
+  name: string;
 };
 
 function uid() {
@@ -54,6 +60,24 @@ function safeWrite(key: string, value: unknown) {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {}
+}
+
+function readLocalStops(tripId: string): StopOption[] {
+  try {
+    if (typeof window === "undefined") return [];
+    const raw = window.localStorage.getItem(`wandersplit:stops:${tripId}`);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return [];
+
+    return arr
+      .map((item: any, index: number) => ({
+        id: String(item.id ?? `stop-${index}`),
+        name: String(item.name ?? item.city ?? `Przystanek ${index + 1}`),
+      }))
+      .filter((item) => item.name.trim().length > 0);
+  } catch {
+    return [];
+  }
 }
 
 function nextStatus(s: Status): Status {
@@ -117,6 +141,60 @@ function ProgressRing({
       <span className="absolute text-[9px] font-bold text-slate-700">
         {clamped === 0 ? "" : clamped === 50 ? "½" : "✓"}
       </span>
+
+      {stopPickerOpen && (
+        <div className="fixed inset-0 z-[9999]" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            aria-label="Zamknij wybór miejsca"
+            onClick={() => setStopPickerOpen(false)}
+            className="absolute inset-0 bg-black/35 backdrop-blur-sm"
+          />
+
+          <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-[430px] rounded-t-[34px] bg-[#FCFCFA] p-5 shadow-[0_-20px_60px_rgba(15,23,42,0.22)]">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-neutral-300" />
+
+            <div className="mb-4">
+              <div className="text-lg font-bold tracking-tight text-neutral-900">
+                Wybierz miejsce
+              </div>
+              <div className="mt-1 text-sm text-neutral-500">
+                Punkt planu zostanie przypisany do wybranego przystanku.
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStopId("");
+                  setStopPickerOpen(false);
+                }}
+                className={selectedStopId === "" ? "flex w-full items-center justify-between rounded-[22px] bg-neutral-900 px-4 py-4 text-left text-sm font-semibold text-white" : "flex w-full items-center justify-between rounded-[22px] border border-black/5 bg-white px-4 py-4 text-left text-sm font-semibold text-neutral-800"}
+              >
+                <span>Bez miejsca</span>
+                <span>{selectedStopId === "" ? "✓" : ""}</span>
+              </button>
+
+              {stops.map((stop, index) => (
+                <button
+                  key={stop.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStopId(stop.id);
+                    setStopPickerOpen(false);
+                  }}
+                  className={selectedStopId === stop.id ? "flex w-full items-center justify-between rounded-[22px] bg-neutral-900 px-4 py-4 text-left text-sm font-semibold text-white" : "flex w-full items-center justify-between rounded-[22px] border border-black/5 bg-white px-4 py-4 text-left text-sm font-semibold text-neutral-800"}
+                >
+                  <span className="truncate">{index + 1}. {stop.name}</span>
+                  <span>{selectedStopId === stop.id ? "✓" : ""}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -274,11 +352,13 @@ function SortablePlanItem({
   onCycle,
   onEdit,
   onRemove,
+  stopName,
 }: {
   item: Item;
   onCycle: (id: string) => void;
   onEdit: (item: Item) => void;
   onRemove: (id: string) => void;
+  stopName: (stopId?: string) => string;
 }) {
   const {
     attributes,
@@ -338,6 +418,10 @@ function SortablePlanItem({
             <span className="rounded-full bg-[#f5f7fb] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               {statusLabel(item.status)}
             </span>
+
+            <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-700">
+              📍 {stopName(item.stop_id)}
+            </span>
           </div>
 
           <div
@@ -384,6 +468,9 @@ function PlanInner({ tripId }: { tripId: string }) {
   const key = useMemo(() => `wandersplit:plan:${tripId}`, [tripId]);
 
   const [items, setItems] = useState<Item[]>([]);
+  const [stops, setStops] = useState<StopOption[]>([]);
+  const [selectedStopId, setSelectedStopId] = useState("");
+  const [stopPickerOpen, setStopPickerOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | Status>("all");
 
   const [open, setOpen] = useState(false);
@@ -415,9 +502,12 @@ function PlanInner({ tripId }: { tripId: string }) {
     const normalized = (Array.isArray(arr) ? arr : []).map((item) => ({
       ...item,
       day: item?.day || "Day 1",
+      stop_id: item?.stop_id || "",
     }));
+
+    setStops(readLocalStops(tripId));
     setItems(normalized);
-  }, [key]);
+  }, [key, tripId]);
 
   function persist(next: Item[]) {
     setItems(next);
@@ -429,6 +519,7 @@ function PlanInner({ tripId }: { tripId: string }) {
     setText("");
     setTag("todo");
     setDay("Day 1");
+    setSelectedStopId("");
   }
 
   function openAdd() {
@@ -441,6 +532,7 @@ function PlanInner({ tripId }: { tripId: string }) {
     setText(it.text);
     setTag(it.tag);
     setDay(it.day || "Day 1");
+    setSelectedStopId(it.stop_id || "");
     setOpen(true);
   }
 
@@ -449,10 +541,10 @@ function PlanInner({ tripId }: { tripId: string }) {
     if (!t) return;
 
     if (editingId) {
-      persist(items.map((it) => (it.id === editingId ? { ...it, text: t, tag, day } : it)));
+      persist(items.map((it) => (it.id === editingId ? { ...it, text: t, tag, day, stop_id: selectedStopId } : it)));
     } else {
       const next: Item[] = [
-        { id: uid(), text: t, status: "todo", tag, day, createdAt: new Date().toISOString() },
+        { id: uid(), text: t, status: "todo", tag, day, stop_id: selectedStopId, createdAt: new Date().toISOString() },
         ...items,
       ];
       persist(next);
@@ -491,6 +583,11 @@ function PlanInner({ tripId }: { tripId: string }) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     reorderItemsInDay(dayName, String(active.id), String(over.id));
+  }
+
+  function stopName(stopId?: string) {
+    if (!stopId) return "Bez miejsca";
+    return stops.find((stop) => stop.id === stopId)?.name || "Miejsce";
   }
 
   async function convertPlanToChecklist() {
@@ -912,6 +1009,7 @@ function PlanInner({ tripId }: { tripId: string }) {
                             onCycle={cycle}
                             onEdit={openEdit}
                             onRemove={remove}
+                            stopName={stopName}
                           />
                         );
                       })}
@@ -936,11 +1034,16 @@ function PlanInner({ tripId }: { tripId: string }) {
       {/* Bottom sheet */}
       {open ? (
         <div className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
-          <div className="mx-auto w-full max-w-[430px]" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="mt-[22vh] rounded-t-[28px] bg-white p-5 shadow-[0_-20px_80px_rgba(0,0,0,0.25)]">
+          <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[430px]" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="rounded-t-[34px] bg-[#FCFCFA] p-5 pb-7 shadow-[0_-24px_80px_rgba(15,23,42,0.28)]">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-extrabold text-slate-900">
-                  {editingId ? "Edytuj punkt" : "Dodaj punkt"}
+                <div>
+                  <div className="text-lg font-extrabold tracking-tight text-slate-900">
+                    {editingId ? "Edytuj punkt" : "Dodaj do planu"}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    Połącz zadanie z miejscem, dniem i typem aktywności.
+                  </div>
                 </div>
                 <button
                   onClick={() => setOpen(false)}
@@ -951,13 +1054,48 @@ function PlanInner({ tripId }: { tripId: string }) {
                 </button>
               </div>
 
-              <div className="mt-3">
-                <ProInput
+              <div className="mt-5">
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Co planujesz?
+                </label>
+                <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder="np. Rezerwacja hotelu, bilety do muzeum…"
+                  placeholder="np. Zarezerwować hotel, kupić bilety, sprawdzić dojazd…"
                   autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="sentences"
+                  spellCheck={false}
+                  className="min-h-[96px] w-full resize-none rounded-[26px] border border-slate-200 bg-white px-4 py-4 text-[15px] font-semibold leading-6 text-slate-900 outline-none shadow-sm placeholder:text-slate-400 focus:border-slate-300 focus:bg-white"
                 />
+              </div>
+
+              <div className="mt-4">
+                <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Miejsce
+                </div>
+
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStopId("")}
+                    className={selectedStopId === "" ? "shrink-0 rounded-full bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-sm" : "shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600"}
+                  >
+                    📍 Bez miejsca
+                  </button>
+
+                  {stops.map((stop, index) => (
+                    <button
+                      key={stop.id}
+                      type="button"
+                      onClick={() => setSelectedStopId(stop.id)}
+                      className={selectedStopId === stop.id ? "shrink-0 rounded-full bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-sm" : "shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600"}
+                    >
+                      {index + 1}. {stop.name}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="mt-3">
@@ -986,11 +1124,11 @@ function PlanInner({ tripId }: { tripId: string }) {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {(
                   [
-                    ["todo", "To-do"],
-                    ["transport", "Transport"],
-                    ["stay", "Nocleg"],
-                    ["tickets", "Bilety"],
-                    ["other", "Inne"],
+                    ["todo", "✅ To-do"],
+                    ["transport", "🚆 Transport"],
+                    ["stay", "🏨 Nocleg"],
+                    ["tickets", "🎟️ Bilety"],
+                    ["other", "✨ Inne"],
                   ] as [Tag, string][]
                 ).map(([value, label]) => (
                   <button
@@ -1009,9 +1147,13 @@ function PlanInner({ tripId }: { tripId: string }) {
               </div>
 
               <div className="mt-4">
-                <ProButton className="w-full" onClick={addOrSave}>
-                  {editingId ? "Zapisz zmiany" : "Dodaj punkt"}
-                </ProButton>
+                <button
+                  type="button"
+                  onClick={addOrSave}
+                  className="flex w-full items-center justify-center rounded-[24px] bg-slate-900 px-5 py-4 text-sm font-extrabold text-white shadow-[0_18px_40px_rgba(15,23,42,0.24)] active:scale-[0.98]"
+                >
+                  {editingId ? "Zapisz zmiany" : "Dodaj do planu"}
+                </button>
               </div>
             </div>
           </div>
