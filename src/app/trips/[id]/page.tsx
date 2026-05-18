@@ -34,8 +34,11 @@ type Expense = {
 };
 
 type Stop = {
+  id?: string;
   name?: string;
   city?: string;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 type ChecklistItem = {
@@ -201,6 +204,7 @@ export default function TripHomePage() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [selectedStop, setSelectedStop] = useState<{ stop: Stop; index: number } | null>(null);
 
   const stopsData = readArrayFromStorage<Stop>(`wandersplit:stops:${tripId}`);
   const expensesData = readArrayFromStorage<Expense>(`wandersplit:expenses:${tripId}`);
@@ -515,9 +519,11 @@ className="ws-card ws-lift block overflow-hidden rounded-[28px] p-5 transition a
                       const image = getSmartCover(label, `${tripId}-${index}`);
 
                       return (
-                        <div
+                        <button
                           key={`${label}-${index}`}
-                          className="min-w-[285px] max-w-[285px] snap-start overflow-hidden rounded-[34px] border border-violet-100 bg-[linear-gradient(180deg,#ffffff_0%,#f5f3ff_100%)] p-3 shadow-[0_20px_50px_rgba(139,92,246,0.14)] transition duration-300 active:scale-[0.98]"
+                          type="button"
+                          onClick={() => setSelectedStop({ stop, index })}
+                          className="min-w-[285px] max-w-[285px] snap-start overflow-hidden rounded-[34px] border border-violet-100 bg-[linear-gradient(180deg,#ffffff_0%,#f5f3ff_100%)] p-3 text-left shadow-[0_20px_50px_rgba(139,92,246,0.14)] transition duration-300 active:scale-[0.98]"
                         >
                           <div
                             className="relative h-[190px] overflow-hidden rounded-[28px] bg-cover bg-center"
@@ -553,7 +559,7 @@ className="ws-card ws-lift block overflow-hidden rounded-[28px] p-5 transition a
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -733,6 +739,89 @@ className="ws-card ws-lift block overflow-hidden rounded-[28px] p-5 transition a
             <Plus size={18} />
             Dodaj
           </button>
+
+
+          {selectedStop && (
+            <div className="fixed inset-0 z-[110]">
+              <div
+                className="absolute inset-0 bg-black/45 backdrop-blur-md"
+                onClick={() => setSelectedStop(null)}
+              />
+
+              <motion.div
+                initial={{ y: 280, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 280, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                className="absolute bottom-0 left-0 right-0 mx-auto max-w-[430px] rounded-t-[36px] border-t border-white/40 bg-[#FCFCFA] p-5 shadow-[0_-18px_60px_rgba(0,0,0,0.22)]"
+              >
+                <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-neutral-300" />
+
+                <div
+                  className="relative h-[190px] overflow-hidden rounded-[30px] bg-cover bg-center shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
+                  style={{
+                    backgroundImage: `linear-gradient(to top, rgba(15,23,42,0.48), rgba(15,23,42,0.06)), url('${getSmartCover(selectedStop.stop.name || selectedStop.stop.city || "travel", `${tripId}-overview-${selectedStop.index}`)}')`,
+                  }}
+                >
+                  <div className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-violet-700 shadow-sm backdrop-blur">
+                    Stop {selectedStop.index + 1}
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <h3 className="text-[30px] font-extrabold leading-tight tracking-tight text-white">
+                      {selectedStop.stop.name || selectedStop.stop.city || "Przystanek"}
+                    </h3>
+                    <p className="mt-1 text-sm font-medium text-white/80">
+                      Mini centrum tego miejsca w Twojej podróży.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-3">
+                  <Link
+                    href={`/trips/${tripId}/plan`}
+                    className="rounded-[24px] border border-violet-100 bg-violet-50 px-3 py-4 text-center shadow-sm"
+                  >
+                    <div className="text-xl">🗓️</div>
+                    <div className="mt-2 text-xs font-bold text-slate-900">Plan</div>
+                  </Link>
+
+                  <Link
+                    href={`/trips/${tripId}/checklist`}
+                    className="rounded-[24px] border border-violet-100 bg-violet-50 px-3 py-4 text-center shadow-sm"
+                  >
+                    <div className="text-xl">✅</div>
+                    <div className="mt-2 text-xs font-bold text-slate-900">Lista</div>
+                  </Link>
+
+                  <Link
+                    href={`/trips/${tripId}/stops`}
+                    className="rounded-[24px] border border-violet-100 bg-violet-50 px-3 py-4 text-center shadow-sm"
+                  >
+                    <div className="text-xl">🗺️</div>
+                    <div className="mt-2 text-xs font-bold text-slate-900">Trasa</div>
+                  </Link>
+                </div>
+
+                <div className="mt-4 rounded-[28px] border border-black/5 bg-white px-4 py-4 shadow-sm">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-400">
+                    Next step
+                  </div>
+                  <div className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+                    Dodaj zadania i punkty planu przypisane do tego miejsca, żeby zbudować prawdziwy flow podróży.
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedStop(null)}
+                  className="mt-4 w-full rounded-[24px] bg-slate-900 px-5 py-4 text-sm font-extrabold text-white shadow-[0_18px_40px_rgba(15,23,42,0.24)] active:scale-[0.98]"
+                >
+                  Zamknij
+                </button>
+              </motion.div>
+            </div>
+          )}
 
           {sheetOpen && (
             <div className="fixed inset-0 z-[100]">
