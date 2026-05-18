@@ -329,7 +329,7 @@ function SortablePlanItem({
       ref={setNodeRef}
       style={style}
       className={cx(
-        "rounded-[28px] border border-black/5 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] px-4 py-4 shadow-[0_14px_34px_rgba(15,23,42,0.08)] touch-none",
+        "rounded-[28px] border border-violet-100/70 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] px-4 py-4 shadow-[0_12px_30px_rgba(139,92,246,0.08)] touch-none",
         isDragging && "scale-[1.02] opacity-90 shadow-[0_24px_50px_rgba(15,23,42,0.16)]",
         "hover:scale-[1.01]"
       )}
@@ -373,7 +373,7 @@ function SortablePlanItem({
 
           <div
             className={cx(
-              "text-[15px] font-semibold leading-6 text-slate-900 break-words",
+              "text-[15px] font-semibold leading-6 text-white break-words",
               item.status === "done" && "text-slate-400 line-through"
             )}
           >
@@ -706,7 +706,7 @@ function PlanInner({ tripId }: { tripId: string }) {
 
           <div className="grid grid-cols-3 gap-3 px-4 py-4">
             <div className="rounded-[24px] bg-[#F8F8F6] p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
                 Wszystkie
               </div>
               <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
@@ -715,7 +715,7 @@ function PlanInner({ tripId }: { tripId: string }) {
             </div>
 
             <div className="rounded-[24px] bg-[#F4EEE4] p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
                 W trakcie
               </div>
               <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
@@ -896,7 +896,7 @@ function PlanInner({ tripId }: { tripId: string }) {
             <ProCard className="p-6 text-center rounded-[28px] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
               <div className="text-3xl">🌍</div>
 
-              <div className="mt-3 text-lg font-semibold text-slate-900">
+              <div className="mt-3 text-lg font-semibold text-white">
                 Zacznij planować swoją podróż
               </div>
 
@@ -915,8 +915,30 @@ function PlanInner({ tripId }: { tripId: string }) {
             </ProCard>
           ) : (
             groupedItems.map(([dayName, dayItems]) => (
-              <div key={dayName} className="space-y-3 rounded-[30px] border border-black/5 bg-white p-3 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
-                <div className="overflow-hidden rounded-[26px] bg-[linear-gradient(135deg,#f8fafc_0%,#eef2f7_100%)] px-4 py-4">
+              <div
+  key={dayName}
+  className="
+    space-y-4
+    overflow-hidden
+    rounded-[34px]
+    border border-violet-100/70
+    bg-[linear-gradient(180deg,#ffffff_0%,#f7f4ff_100%)]
+    p-4
+    shadow-[0_24px_60px_rgba(124,58,237,0.10)]
+    backdrop-blur-xl
+  "
+>
+                <div
+  className="
+    overflow-hidden
+    rounded-[30px]
+    bg-[linear-gradient(135deg,#2e1065_0%,#4c1d95_45%,#7c3aed_100%)]
+    px-5
+    py-5
+    text-white
+    shadow-[0_18px_50px_rgba(124,58,237,0.28)]
+  "
+>
                   <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500">
                     Dzień planu
                   </div>
@@ -940,8 +962,10 @@ function PlanInner({ tripId }: { tripId: string }) {
                     items={dayItems.filter((it) => !/^day\s+\d+/i.test(it.text)).map((it) => it.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    <div className="space-y-2">
-                      {dayItems.map((it) => {
+                    <div className="relative mt-5 space-y-4 pl-7">
+                      <div className="absolute bottom-4 left-[13px] top-2 w-px bg-gradient-to-b from-violet-300 via-slate-200 to-transparent" />
+
+                      {dayItems.map((it, index) => {
                         const isDayHeader = /^day\s+\d+/i.test(it.text);
 
                         if (isDayHeader) {
@@ -949,14 +973,19 @@ function PlanInner({ tripId }: { tripId: string }) {
                         }
 
                         return (
-                          <SortablePlanItem
-                            key={it.id}
-                            item={it}
-                            onCycle={cycle}
-                            onEdit={openEdit}
-                            onRemove={remove}
-                            stopName={stopName}
-                          />
+                          <div key={it.id} className="relative">
+                            <div className="absolute -left-7 top-5 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-violet-600 text-[11px] font-extrabold text-white shadow-[0_8px_22px_rgba(124,58,237,0.28)]">
+                              {index + 1}
+                            </div>
+
+                            <SortablePlanItem
+                              item={it}
+                              onCycle={cycle}
+                              onEdit={openEdit}
+                              onRemove={remove}
+                              stopName={stopName}
+                            />
+                          </div>
                         );
                       })}
                     </div>
