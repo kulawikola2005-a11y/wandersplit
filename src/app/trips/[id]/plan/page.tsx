@@ -98,6 +98,24 @@ function statusLabel(s: Status) {
   return "Zrobione";
 }
 
+
+function fakeTravelTime(index: number) {
+  const slots = ["08:00", "09:30", "11:00", "13:30", "15:00", "17:30", "20:00"];
+  return slots[index % slots.length];
+}
+
+function fakeTransport(index: number) {
+  const transport = [
+    "🚶 12 min spacer",
+    "🚆 25 min metro",
+    "🚕 10 min taxi",
+    "🚌 18 min bus",
+    "🚲 14 min ride",
+  ];
+
+  return transport[index % transport.length];
+}
+
 function ProgressRing({
   value,
   size = 24,
@@ -425,7 +443,7 @@ function PlanInner({ tripId }: { tripId: string }) {
   const [text, setText] = useState("");
   const [tag, setTag] = useState<Tag>("todo");
   const [day, setDay] = useState("Day 1");
-  const [dayFilter, setDayFilter] = useState<"all" | string>("all");
+  const [dayFilter, setDayFilter] = useState<string>("Day 1");
 
   const [aiBusy, setAiBusy] = useState(false);
   const [aiMsg, setAiMsg] = useState<string | null>(null);
@@ -688,204 +706,142 @@ function PlanInner({ tripId }: { tripId: string }) {
 
   return (
     <div className="min-h-dvh bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] pb-28">
-      <div className="mx-auto max-w-xl px-4 pt-4 space-y-5">
-        <header className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-          <div className="bg-[linear-gradient(135deg,#1f2937_0%,#111827_55%,#2f3a4f_100%)] px-5 py-6 text-white">
-            <div className="text-sm font-medium text-white/80">
-              Itinerary
-            </div>
-
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+      <div className="mx-auto max-w-xl px-4 pt-7 space-y-7">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[34px] font-black tracking-[-0.04em] text-slate-950">
               Plan podróży
             </h1>
-
-            <p className="mt-2 max-w-md text-sm leading-6 text-white/75">
-              Ułóż dni wyjazdu, zadania i najważniejsze punkty podróży w jednym miejscu.
+            <p className="mt-2 text-[15px] font-medium leading-6 text-slate-500">
+              Zaplanuj każdy dzień swojej podróży
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 px-4 py-4">
-            <div className="rounded-[24px] bg-[#F8F8F6] p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
-                Wszystkie
-              </div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                {counts.total}
-              </div>
-            </div>
-
-            <div className="rounded-[24px] bg-[#F4EEE4] p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
-                W trakcie
-              </div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                {counts.doing}
-              </div>
-            </div>
-
-            <div className="rounded-[24px] bg-[#EEF2FF] p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                Gotowe
-              </div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                {counts.done}
-              </div>
-            </div>
-          </div>
+          <button
+            type="button"
+            className="grid h-14 w-14 place-items-center rounded-[22px] border border-violet-100 bg-white text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
+          >
+            ⚙️
+          </button>
         </header>
 
-        <section className="rounded-[28px] border border-black/5 bg-white/80 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
-            Plan podróży
+        <section className="-mx-1">
+          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-3">
+            {visibleDays.map((d, index) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDayFilter(d)}
+                className={cx(
+                  "relative min-w-[285px] snap-start overflow-hidden rounded-[32px] border p-5 text-left transition active:scale-[0.98]",
+                  dayFilter === d
+                    ? "border-violet-300 bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] text-white shadow-[0_22px_55px_rgba(124,58,237,0.32)]"
+                    : "border-violet-100 bg-white text-slate-950 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+                )}
+              >
+                <div
+                  className="absolute right-4 top-4 h-24 w-24 rounded-[28px] bg-cover bg-center opacity-90"
+                  style={{
+                    backgroundImage: `linear-gradient(to top, rgba(15,23,42,0.18), rgba(15,23,42,0.02)), url('${getSmartCover(d, `${tripId}-${d}`)}')`,
+                  }}
+                />
+
+                <div className="relative max-w-[150px]">
+                  <div className={dayFilter === d ? "text-[11px] font-bold uppercase tracking-[0.16em] text-white/70" : "text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500"}>
+                    Dzień {index + 1}
+                  </div>
+                  <div className="mt-3 text-[30px] font-black tracking-[-0.03em]">
+                    {d}
+                  </div>
+                  <div className={dayFilter === d ? "mt-2 text-sm font-semibold text-white/75" : "mt-2 text-sm font-semibold text-slate-500"}>
+                    {items.filter((item) => (item.day || "Day 1") === d).length} punktów
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
 
-          <h2 className="mt-2 text-xl font-semibold tracking-tight text-neutral-900">
-            Ułóż wyjazd dzień po dniu
-          </h2>
-
-          <p className="mt-3 text-sm leading-7 text-neutral-600">
-            Dodawaj punkty planu, zmieniaj ich kolejność i oznaczaj postęp przygotowań.
-          </p>
+          <div className="mt-1 flex justify-center gap-2">
+            {visibleDays.map((d) => (
+              <span
+                key={d}
+                className={cx(
+                  "h-2 w-2 rounded-full",
+                  dayFilter === d ? "bg-violet-600" : "bg-slate-300"
+                )}
+              />
+            ))}
+          </div>
         </section>
 
-        <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-[24px] bg-[#F8F8F6] p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                Wszystkie
-              </div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                {counts.total}
-              </div>
-            </div>
-
-            <div className="rounded-[24px] bg-[#F4EEE4] p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                W trakcie
-              </div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                {counts.doing}
-              </div>
-            </div>
-
-            <div className="rounded-[24px] bg-white p-4 ring-1 ring-black/5">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                Gotowe
-              </div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                {counts.done}
-              </div>
-            </div>
+        <section className="rounded-[32px] border border-violet-100 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
+          <div>
+            <h2 className="text-[22px] font-black tracking-tight text-slate-950">
+              Narzędzia planu
+            </h2>
+            <p className="mt-1 text-sm font-medium leading-6 text-slate-500">
+              Dodawaj punkty, porządkuj plan i zamieniaj go w checklistę.
+            </p>
           </div>
 
-          <div className="mt-4 rounded-[24px] bg-[#fcfcfd] p-4 ring-1 ring-black/5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-neutral-900">
-                  Narzędzia planu
-                </div>
-                <div className="mt-1 text-sm text-neutral-500">
-                  Dodawaj punkty, generuj draft i filtruj dni podróży.
-                </div>
-              </div>
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <button
+              onClick={openAdd}
+              className="rounded-[22px] bg-slate-950 px-4 py-4 text-sm font-bold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+            >
+              ＋ Dodaj punkt
+            </button>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={openAdd}
-                  className="rounded-full border border-slate-200 bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm"
-                >
-                  + Dodaj
-                </button>
+            <button
+              onClick={convertPlanToChecklist}
+              className="rounded-[22px] border border-violet-100 bg-white px-4 py-4 text-sm font-bold text-slate-700 shadow-sm"
+            >
+              ☷ Do checklisty
+            </button>
 
-                <button
-                  onClick={generateAiPlanAndChecklist}
-                  disabled={aiBusy}
-                  className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
-                >
-                  {aiBusy ? "Generowanie..." : "AI draft"}
-                </button>
+            <button
+              onClick={clearAll}
+              className="rounded-[22px] border border-violet-100 bg-white px-4 py-4 text-sm font-bold text-slate-700 shadow-sm"
+            >
+              🗑 Wyczyść
+            </button>
+          </div>
 
-                <button
-                  onClick={convertPlanToChecklist}
-                  className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700"
-                >
-                  Checklista
-                </button>
-
-                <button
-                  onClick={clearAll}
-                  className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700"
-                >
-                  Wyczyść
-                </button>
-              </div>
+          {(aiMsg || aiChecklistAdded !== null) && (
+            <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">
+              {aiMsg}
             </div>
+          )}
+        </section>
 
-            {(aiMsg || aiChecklistAdded !== null) && (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-                {aiMsg}
-              </div>
-            )}
+        <section className="rounded-[32px] border border-violet-100 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
+          <h2 className="text-[22px] font-black tracking-tight text-slate-950">
+            Status punktów
+          </h2>
 
-            <div className="mt-5 border-t border-slate-100 pt-4">
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                Status
-              </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              className={cx(
+                "rounded-[22px] px-4 py-4 text-sm font-bold",
+                filter === "all" ? "bg-slate-950 text-white" : "border border-violet-100 bg-white text-slate-700"
+              )}
+              onClick={() => setFilter("all")}
+            >
+              Wszystkie
+            </button>
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  className={cx(
-                    "rounded-2xl px-3 py-2 text-xs font-semibold border",
-                    filter === "all" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                  )}
-                  onClick={() => setFilter("all")}
-                >
-                  Wszystkie
-                </button>
-                {(["todo", "doing", "done"] as Status[]).map((s) => (
-                  <button
-                    key={s}
-                    className={cx(
-                      "rounded-2xl px-3 py-2 text-xs font-semibold border",
-                      filter === s ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                    )}
-                    onClick={() => setFilter(s)}
-                  >
-                    {statusLabel(s)}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-5 border-t border-slate-100 pt-4">
-                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                  Dni
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    className={cx(
-                      "rounded-2xl px-3 py-2 text-xs font-semibold border",
-                      dayFilter === "all" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                    )}
-                    onClick={() => setDayFilter("all")}
-                  >
-                    Wszystkie dni
-                  </button>
-                  {visibleDays.map((d) => (
-                    <button
-                      key={d}
-                      className={cx(
-                        "rounded-2xl px-3 py-2 text-xs font-semibold border",
-                        dayFilter === d ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                      )}
-                      onClick={() => setDayFilter(d)}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            {(["todo", "doing", "done"] as Status[]).map((s) => (
+              <button
+                key={s}
+                className={cx(
+                  "rounded-[22px] px-4 py-4 text-sm font-bold",
+                  filter === s ? "bg-slate-950 text-white" : "border border-violet-100 bg-white text-slate-700"
+                )}
+                onClick={() => setFilter(s)}
+              >
+                {statusLabel(s)}
+              </button>
+            ))}
           </div>
         </section>
 
@@ -939,16 +895,16 @@ function PlanInner({ tripId }: { tripId: string }) {
     shadow-[0_18px_50px_rgba(124,58,237,0.28)]
   "
 >
-                  <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
                     Dzień planu
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-xl font-black tracking-tight text-slate-900">
+                  <div className="mt-2 flex items-center gap-2 text-[34px] font-black tracking-tight text-white">
                     <span>{dayName}</span>
-                    <span className="text-sm font-semibold text-slate-400">
+                    <span className="text-sm font-semibold text-white/70">
                       · {dayItems.length} {dayItems.length === 1 ? "punkt" : "punkty"}
                     </span>
                   </div>
-                  <div className="mt-2 text-sm text-neutral-500">
+                  <div className="mt-3 max-w-[240px] text-sm leading-6 text-white/75">
                     Ułóż przebieg dnia i zachowaj kolejność najważniejszych punktów.
                   </div>
                 </div>
@@ -978,13 +934,31 @@ function PlanInner({ tripId }: { tripId: string }) {
                               {index + 1}
                             </div>
 
-                            <SortablePlanItem
-                              item={it}
-                              onCycle={cycle}
-                              onEdit={openEdit}
-                              onRemove={remove}
-                              stopName={stopName}
-                            />
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3 pl-1">
+                                <div className="rounded-full bg-violet-100 px-3 py-1 text-[11px] font-bold tracking-wide text-violet-700">
+                                  {fakeTravelTime(index)}
+                                </div>
+
+                                {index > 0 ? (
+                                  <div className="text-[11px] font-semibold text-slate-400">
+                                    {fakeTransport(index)}
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] font-semibold text-violet-400">
+                                    Start dnia
+                                  </div>
+                                )}
+                              </div>
+
+                              <SortablePlanItem
+                                item={it}
+                                onCycle={cycle}
+                                onEdit={openEdit}
+                                onRemove={remove}
+                                stopName={stopName}
+                              />
+                            </div>
                           </div>
                         );
                       })}
@@ -1077,7 +1051,7 @@ function PlanInner({ tripId }: { tripId: string }) {
                 <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">
                   Dzień
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-3">
                   {["Day 1", "Day 2", "Day 3", "Day 4", "Day 5"].map((value) => (
                     <button
                       key={value}

@@ -26,19 +26,29 @@ function FitToPoints({ points }: { points: [number, number][] }) {
 
     const timer = window.setTimeout(() => {
       try {
-        if (points.length === 1) {
-          map.setView(points[0], 7, { animate: true });
-          return;
-        }
+        map.invalidateSize();
 
-        map.fitBounds(points, {
-          padding: [24, 24],
-          animate: true,
+        requestAnimationFrame(() => {
+          try {
+            if (!map || !(map as any)._loaded) return;
+
+            if (points.length === 1) {
+              map.setView(points[0], 7, { animate: false });
+              return;
+            }
+
+            map.fitBounds(points, {
+              padding: [24, 24],
+              animate: false,
+            });
+          } catch (error) {
+            console.warn("Leaflet animation fix:", error);
+          }
         });
       } catch (error) {
         console.warn("FitToPoints warning:", error);
       }
-    }, 80);
+    }, 180);
 
     return () => window.clearTimeout(timer);
   }, [map, points]);
