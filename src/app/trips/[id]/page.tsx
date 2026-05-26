@@ -48,6 +48,12 @@ type ChecklistItem = {
   status?: string;
 };
 
+type PackingItem = {
+  id: string;
+  text: string;
+  packed: boolean;
+};
+
 function readTripFromLocalStorage(tripId: string): Trip | null {
   if (typeof window === "undefined") return null;
 
@@ -209,6 +215,8 @@ export default function TripHomePage() {
   const stopsData = readArrayFromStorage<Stop>(`wandersplit:stops:${tripId}`);
   const expensesData = readArrayFromStorage<Expense>(`wandersplit:expenses:${tripId}`);
   const checklistData = readArrayFromStorage<ChecklistItem>(`wandersplit:checklist:${tripId}`);
+  const [packingItems, setPackingItems] = useState<PackingItem[]>([]);
+  const [packingText, setPackingText] = useState("");
 
   const stops = stopsData.length;
 
@@ -219,6 +227,51 @@ export default function TripHomePage() {
         : Number(String(item?.amount ?? 0).replace(",", "."));
     return sum + (Number.isFinite(value) ? value : 0);
   }, 0);
+
+  useEffect(() => {
+    if (!tripId) return;
+    const key = `wandersplit:packing:${tripId}`;
+    const stored = readArrayFromStorage<PackingItem>(key);
+
+    if (stored.length) {
+      setPackingItems(stored);
+    } else {
+      setPackingItems([
+        { id: "passport", text: "Paszport / dokumenty", packed: false },
+        { id: "charger", text: "Ładowarka", packed: false },
+        { id: "headphones", text: "Słuchawki", packed: false },
+      ]);
+    }
+  }, [tripId]);
+
+  function savePacking(next: PackingItem[]) {
+    setPackingItems(next);
+    localStorage.setItem(`wandersplit:packing:${tripId}`, JSON.stringify(next));
+  }
+
+  function togglePacking(id: string) {
+    savePacking(
+      packingItems.map((item) =>
+        item.id === id ? { ...item, packed: !item.packed } : item
+      )
+    );
+  }
+
+  function addPackingItem() {
+    const value = packingText.trim();
+    if (!value) return;
+
+    savePacking([
+      { id: String(Date.now()), text: value, packed: false },
+      ...packingItems,
+    ]);
+
+    setPackingText("");
+  }
+
+  const packedCount = packingItems.filter((item) => item.packed).length;
+  const packingProgress =
+    packingItems.length > 0 ? Math.round((packedCount / packingItems.length) * 100) : 0;
 
   const completedChecklist = checklistData.filter(
     (item) => item?.checked === true || item?.done === true || item?.status === "done"
@@ -601,6 +654,117 @@ className="ws-card ws-lift block overflow-hidden rounded-[28px] p-5 transition a
               )}
             </SectionCard>
 </motion.div>
+
+
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              animate="show"
+              transition={{ duration: 0.4 }}
+            >
+              <section className="overflow-hidden rounded-[34px] border border-violet-100 bg-[linear-gradient(135deg,#ffffff_0%,#f6f3ff_100%)] p-5 shadow-[0_20px_50px_rgba(139,92,246,0.10)]">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">
+                      Pack before trip
+                    </div>
+
+                    <h2 className="mt-2 text-[28px] font-black tracking-tight text-slate-950">
+                      🎒 Do spakowania
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      Osobna lista rzeczy do zabrania — bez mieszania z checklistą zadań.
+                    </p>
+                  </div>
+
+                  <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] text-2xl shadow-[0_16px_40px_rgba(124,58,237,0.24)]">
+                    ✈️
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between">
+                  <div className="text-sm font-bold text-slate-700">
+                    {packedCount}/{packingItems.length || 0} spakowane
+                  </div>
+                  <div className="text-sm font-black text-violet-600">
+                    {packingProgress}%
+                  </div>
+                </div>
+
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-violet-100">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#7c3aed_0%,#8b5cf6_100%)] transition-all duration-700"
+                    style={{ width: `${packingProgress}%` }}
+                  />
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {(packingItems.length ? packingItems : [
+                    { id: "sample-1", text: "Paszport / dokumenty", packed: false },
+                    { id: "sample-2", text: "Ładowarka", packed: false },
+                    { id: "sample-3", text: "Słuchawki", packed: false },
+                  ]).slice(0, 4).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => togglePacking(item.id)}
+                      className="flex w-full items-center gap-3 rounded-[22px] border border-violet-100/60 bg-white/80 px-4 py-3 text-left shadow-sm active:scale-[0.99]"
+                    >
+                      <div
+                        className={
+                          item.packed
+                            ? "grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-500 text-xs font-black text-white"
+                            : "grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-violet-200 bg-white"
+                        }
+                      >
+                        {item.packed ? "✓" : ""}
+                      </div>
+
+                      <div
+                        className={
+                          item.packed
+                            ? "truncate text-sm font-semibold text-slate-400 line-through"
+                            : "truncate text-sm font-semibold text-slate-700"
+                        }
+                      >
+                        {item.text}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-5 flex gap-2">
+                  <input
+                    value={packingText}
+                    onChange={(e) => setPackingText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") addPackingItem();
+                    }}
+                    placeholder="Dodaj rzecz..."
+                    className="min-w-0 flex-1 rounded-[22px] border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={addPackingItem}
+                    className="rounded-[22px] bg-slate-950 px-4 py-3 text-sm font-black text-white"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/trips/${tripId}/packing`;
+                  }}
+                  className="mt-4 w-full rounded-[26px] bg-slate-950 px-5 py-4 text-center text-sm font-black text-white shadow-[0_14px_34px_rgba(15,23,42,0.18)] active:scale-[0.98]"
+                >
+                  Otwórz listę pakowania →
+                </button>
+              </section>
+            </motion.div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <motion.div

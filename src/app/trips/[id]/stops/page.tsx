@@ -274,6 +274,31 @@ useEffect(() => {
     [items]
   );
 
+
+  const nextStop = items[0] || null;
+
+  const routeInsights = useMemo(() => {
+    const notes: string[] = [];
+
+    if (items.length === 0) {
+      notes.push("Dodaj pierwszy przystanek, aby zbudować flow podróży.");
+    }
+
+    if (items.length === 1) {
+      notes.push("Dodaj kolejny przystanek, żeby zobaczyć przebieg trasy.");
+    }
+
+    if (items.length >= 2 && stopsWithCoords < items.length) {
+      notes.push("Niektóre miejsca nie mają współrzędnych — mapa może być mniej dokładna.");
+    }
+
+    if (items.length >= 3) {
+      notes.push("Możesz użyć opcji „Ułóż trasę”, aby poprawić kolejność przystanków.");
+    }
+
+    return notes;
+  }, [items, stopsWithCoords]);
+
   function loadLocal() {
     setLoading(true);
     try {
@@ -421,26 +446,26 @@ useEffect(() => {
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     transition={{ duration: 0.5 }}
-    className="min-h-dvh bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] pb-28">
-      <div className="px-4 pt-4">
-        <div className="mx-auto max-w-xl space-y-5">
-          <header className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-            <div className="bg-[linear-gradient(135deg,#1f2937_0%,#111827_55%,#2f3a4f_100%)] px-5 py-6 text-white">
-              <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+    className="min-h-dvh bg-[linear-gradient(180deg,#f5f1ff_0%,#f8fafc_35%,#ffffff_100%)] pb-32">
+      <div className="px-4 pt-6">
+        <div className="mx-auto max-w-xl space-y-7">
+          <header className="rounded-[36px] border border-violet-100/60 bg-white/90 p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)] backdrop-blur">
+            <div className="text-slate-950">
+              <div className="flex items-center gap-2 text-sm font-bold text-violet-600">
                 <MapPin size={16} />
                 Route
               </div>
 
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+              <h1 className="mt-3 text-[34px] font-black tracking-[-0.04em]">
                 Trasa podróży
               </h1>
 
-              <p className="mt-2 max-w-md text-sm leading-6 text-white/75">
+              <p className="mt-3 max-w-md text-[15px] font-medium leading-7 text-slate-500">
                 Dodawaj miejsca, ustawiaj kolejność i sprawdzaj przebieg wyjazdu na mapie.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 px-4 py-4">
+            <div className="mt-5 grid grid-cols-2 gap-3">
               <div className="rounded-[24px] bg-[#F8F8F6] p-4">
                 <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
                   Przystanki
@@ -461,8 +486,45 @@ useEffect(() => {
             </div>
           </header>
 
-          <section className="overflow-hidden rounded-[30px] border border-white/40 bg-white/80 backdrop-blur-xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-            <div className="flex items-center justify-between gap-3 px-5 py-4">
+          <section className="rounded-[38px] border border-violet-100/70 bg-white/95 p-5 shadow-[0_24px_70px_rgba(124,58,237,0.12)] backdrop-blur">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-500">
+              Next stop
+            </div>
+
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <div className="min-w-0">
+                <div className="truncate text-[32px] font-black tracking-[-0.04em] text-slate-950">
+                  {nextStop ? nextStop.name : "Dodaj miejsce"}
+                </div>
+
+                <div className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                  {items.length > 1
+                    ? `${items.length} przystanków w Twojej trasie`
+                    : "Zbuduj swoją trasę krok po kroku"}
+                </div>
+              </div>
+
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[22px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] text-white shadow-[0_16px_38px_rgba(124,58,237,0.28)]">
+                <Route size={24} />
+              </div>
+            </div>
+
+            {routeInsights.length > 0 && (
+              <div className="mt-5 space-y-2">
+                {routeInsights.slice(0, 2).map((note) => (
+                  <div
+                    key={note}
+                    className="rounded-[24px] bg-violet-50 px-4 py-3 text-sm font-semibold leading-6 text-violet-800"
+                  >
+                    ✨ {note}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="relative overflow-hidden rounded-[42px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(124,58,237,0.16)]">
+            <div className="absolute left-4 right-4 top-4 z-20 flex items-center justify-between gap-3 rounded-[28px] border border-white/70 bg-white/85 px-4 py-3 shadow-[0_16px_40px_rgba(15,23,42,0.10)] backdrop-blur-xl">
               <div>
                 <div className="text-sm font-semibold text-neutral-900">
                   Mapa podróży
@@ -472,17 +534,17 @@ useEffect(() => {
                 </div>
               </div>
 
-              <div className="rounded-full bg-[#f5f7fb] px-3 py-2 text-xs font-semibold text-neutral-600">
-                Mapa
+              <div className="rounded-full bg-violet-600 px-4 py-2 text-xs font-black text-white shadow-[0_12px_28px_rgba(124,58,237,0.24)]">
+                Pełna mapa
               </div>
             </div>
 
-            <div className="h-[260px] w-full">
+            <div className="h-[420px] w-full">
               <StopsPreviewMap items={items} />
             </div>
           </section>
 
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+          <section className="rounded-[38px] border border-violet-100/70 bg-white/95 p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)] backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-neutral-900">
@@ -514,7 +576,7 @@ useEffect(() => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Np. Rome, Paris, Tokyo..."
-                className="w-full rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
+                className="w-full rounded-[26px] border border-violet-100 bg-violet-50/40 px-5 py-4 text-sm font-semibold text-slate-900 outline-none transition focus:bg-white"
                 disabled={busy}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") addStop();
@@ -523,12 +585,70 @@ useEffect(() => {
               <button
                 onClick={addStop}
                 disabled={busy}
-                className="shrink-0 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] disabled:opacity-50"
+                className="shrink-0 rounded-[26px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] px-5 py-4 text-sm font-black text-white shadow-[0_16px_36px_rgba(124,58,237,0.26)] disabled:opacity-50"
               >
                 Dodaj
               </button>
             </div>
           </section>
+
+          {items.length >= 2 && (
+            <section className="rounded-[38px] border border-violet-100/70 bg-white/95 p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)]">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-500">
+                    Journey flow
+                  </div>
+                  <h2 className="mt-2 text-[24px] font-black tracking-tight text-slate-950">
+                    Kolejność podróży
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={optimizeRoute}
+                  disabled={busy}
+                  className="rounded-full bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white disabled:opacity-50"
+                >
+                  Ułóż
+                </button>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {items.map((stop, index) => (
+                  <div key={stop.id} className="relative pl-10">
+                    {index < items.length - 1 && (
+                      <div className="absolute left-[15px] top-9 h-[calc(100%+16px)] w-[2px] bg-gradient-to-b from-violet-300 to-transparent" />
+                    )}
+
+                    <div className="absolute left-0 top-1 grid h-8 w-8 place-items-center rounded-full bg-[linear-gradient(135deg,#4c1d95_0%,#8b5cf6_100%)] text-xs font-black text-white shadow-[0_12px_28px_rgba(124,58,237,0.28)]">
+                      {index + 1}
+                    </div>
+
+                    <div className="rounded-[28px] border border-violet-100/70 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
+                      <div className="text-[16px] font-black tracking-tight text-slate-950">
+                        {stop.name}
+                      </div>
+
+                      <div className="mt-2 text-sm font-medium text-slate-500">
+                        {index === 0
+                          ? "Start podróży"
+                          : index === items.length - 1
+                          ? "Finał trasy"
+                          : "Kolejny etap wyjazdu"}
+                      </div>
+
+                      {index < items.length - 1 && (
+                        <div className="mt-3 inline-flex rounded-full bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700">
+                          Dalej: {items[index + 1].name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {loading ? (
             <div className="rounded-[28px] border border-black/5 bg-white px-4 py-6 text-center text-sm text-neutral-500 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
@@ -580,10 +700,9 @@ useEffect(() => {
 
       <button
         onClick={() => setSheetOpen(true)}
-        className="fixed bottom-28 right-5 z-50 flex h-14 items-center gap-2 rounded-full bg-neutral-900 px-5 text-sm font-semibold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] shadow-[0_18px_40px_rgba(2,6,23,0.35)] active:scale-[0.96]"
+        className="fixed bottom-28 right-5 z-50 grid h-16 w-16 place-items-center rounded-full bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] text-white shadow-[0_24px_60px_rgba(124,58,237,0.35)] active:scale-[0.96]"
       >
-        <Plus size={18} />
-        Dodaj
+        <Plus size={26} />
       </button>
 
       {sheetOpen && (

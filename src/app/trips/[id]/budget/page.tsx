@@ -280,425 +280,274 @@ function BudgetInner({ tripId }: { tripId: string }) {
   );
 
   return (
-    <main className="min-h-dvh bg-[#F7F7F3] pb-28">
-      <div className="px-4 pt-4">
-        <div className="mx-auto max-w-xl">
-          <div className="rounded-[32px] bg-gradient-to-br from-black via-neutral-900 to-neutral-800 p-5 text-white shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-            <div className="text-xs uppercase tracking-wide text-white/60">
-              Podsumowanie
+    <main className="min-h-dvh bg-[linear-gradient(180deg,#f6f1ff_0%,#fbfaf8_42%,#ffffff_100%)] pb-32">
+      <div className="mx-auto max-w-xl px-4 pt-7 space-y-7">
+        <header>
+          <div className="text-[34px] font-black tracking-[-0.04em] text-slate-950">
+            Budget
+          </div>
+          <p className="mt-2 text-[15px] font-medium leading-6 text-slate-500">
+            Track trip spending, split costs and see who paid what.
+          </p>
+        </header>
+
+        <section className="relative overflow-hidden rounded-[42px] bg-[linear-gradient(135deg,#1e1b4b_0%,#4c1d95_48%,#8b5cf6_100%)] p-7 text-white shadow-[0_32px_90px_rgba(76,29,149,0.36)]">
+          <div className="absolute -right-14 -top-14 h-48 w-48 rounded-full bg-white/12 blur-3xl" />
+          <div className="absolute -bottom-10 left-8 h-36 w-36 rounded-full bg-fuchsia-300/20 blur-3xl" />
+
+          <div className="relative">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/65">
+              Total spent
             </div>
 
-            <div className="mt-2 text-3xl font-semibold">
+            <div className="mt-4 text-[52px] font-black leading-none tracking-[-0.06em]">
               {fmt(totalSpent, currency)}
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-2xl bg-white/10 p-3">
-                <div className="text-white/60">Osób</div>
-                <div className="mt-1 text-lg font-semibold">{people.length}</div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-[28px] border border-white/10 bg-white/12 p-4 backdrop-blur-xl">
+                <div className="text-xs font-semibold text-white/60">People</div>
+                <div className="mt-1 text-2xl font-black">{people.length}</div>
               </div>
 
-              <div className="rounded-2xl bg-white/10 p-3">
-                <div className="text-white/60">Wydatków</div>
-                <div className="mt-1 text-lg font-semibold">{expenses.length}</div>
+              <div className="rounded-[28px] border border-white/10 bg-white/12 p-4 backdrop-blur-xl">
+                <div className="text-xs font-semibold text-white/60">Expenses</div>
+                <div className="mt-1 text-2xl font-black">{expenses.length}</div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <div className="px-4 pt-5">
-        <div className="mx-auto max-w-xl space-y-4">
+        <section className="rounded-[32px] border border-violet-100/70 bg-white/90 p-2 shadow-[0_20px_50px_rgba(124,58,237,0.10)] backdrop-blur">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              ["expenses", "Wydatki"],
+              ["balances", "Salda"],
+              ["settlements", "Split"],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key as "expenses" | "balances" | "settlements")}
+                className={cx(
+                  "rounded-[24px] px-3 py-4 text-sm font-black transition",
+                  activeTab === key
+                    ? "bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] text-white shadow-[0_14px_34px_rgba(124,58,237,0.24)]"
+                    : "text-slate-500"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </section>
 
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">
-              Kto ile zapłacił
-          <section className="rounded-[28px] border border-black/5 bg-[#F4EEE4] p-4">
-            <div className="text-sm font-semibold text-neutral-900">
-              💡 Insight
+        <section className="grid grid-cols-2 gap-4">
+          <div className="rounded-[34px] border border-violet-100/60 bg-white p-5 shadow-[0_18px_44px_rgba(15,23,42,0.06)]">
+            <div className="text-2xl">💳</div>
+            <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+              Top payer
             </div>
-
-            <div className="mt-2 text-sm text-neutral-700 space-y-1">
-              {topSpender && (
-                <div>
-                  Najwięcej wydała:{" "}
-                  <span className="font-semibold">
-                    {topSpender.name}
-                  </span>
-                </div>
-              )}
-
-              {biggestDebtor && (
-                <div>
-                  Najwięcej do oddania ma:{" "}
-                  <span className="font-semibold">
-                    {biggestDebtor[0]}
-                  </span>
-                </div>
-              )}
+            <div className="mt-2 truncate text-lg font-black text-slate-950">
+              {topSpender?.name || "—"}
             </div>
-          </section>
+          </div>
 
+          <div className="rounded-[34px] border border-violet-100/60 bg-white p-5 shadow-[0_18px_44px_rgba(15,23,42,0.06)]">
+            <div className="text-2xl">👥</div>
+            <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+              Owes most
             </div>
-
-            <div className="mt-4 space-y-3">
-              {spendingByPerson.map((p) => (
-                <div key={p.name}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-neutral-800">{p.name}</span>
-                    <span className="text-neutral-500">
-                      {p.value.toFixed(2)} {currency}
-                    </span>
-                  </div>
-
-                  <div className="mt-1 h-2 w-full rounded-full bg-neutral-200">
-                    <div
-                      className="h-full rounded-full bg-neutral-900 transition-all"
-                      style={{ width: `${p.percent}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="mt-2 truncate text-lg font-black text-slate-950">
+              {biggestDebtor?.[0] || "—"}
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-            <div className="bg-[linear-gradient(135deg,#1f2937_0%,#111827_55%,#2f3a4f_100%)] px-5 py-6 text-white">
-              <div className="flex items-center gap-2 text-sm font-medium text-white/80">
-                <Wallet size={16} />
-                Finanse wyjazdu
-              </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight">Budżet podróży</h1>
-              <p className="mt-2 max-w-md text-sm leading-6 text-white/75">
-                Dodawaj wydatki, dziel koszty i sprawdzaj kto komu oddaje.
+        <section className="rounded-[38px] border border-violet-100/70 bg-white p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[22px] font-black tracking-tight text-slate-950">
+                People & currency
+              </h2>
+              <p className="mt-1 text-sm font-medium text-slate-500">
+                Add travelers and choose currency.
               </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 px-4 py-4">
-              <div className="rounded-[24px] bg-[#F8F8F6] p-4">
-                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                  <Receipt size={14} />
-                  Wydatki
-                </div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                  {expenses.length}
-                </div>
-              </div>
-
-              <div className="rounded-[24px] bg-[#F4EEE4] p-4">
-                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                  <Wallet size={14} />
-                  Suma
-                </div>
-                <div className="mt-2 text-lg font-semibold tracking-tight text-neutral-900">
-                  {fmt(totalSpent, currency)}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {!editable && (
-            <div className="hidden" />
-          )}
-
-          {msg && (
-            <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {msg}
-            </div>
-          )}
-
-          <div className="rounded-[26px] border border-black/5 bg-white/90 p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.06)] backdrop-blur">
-            <div className="grid grid-cols-3 gap-1.5">
-              <button
-                onClick={() => setActiveTab("expenses")}
-                className={cx(
-                  "rounded-[20px] px-3 py-3 text-sm font-semibold transition",
-                  activeTab === "expenses"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Wydatki
-              </button>
-
-              <button
-                onClick={() => setActiveTab("balances")}
-                className={cx(
-                  "rounded-[20px] px-3 py-3 text-sm font-semibold transition",
-                  activeTab === "balances"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Salda
-              </button>
-
-              <button
-                onClick={() => setActiveTab("settlements")}
-                className={cx(
-                  "rounded-[18px] px-3 py-2.5 text-sm font-semibold transition",
-                  activeTab === "settlements"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500"
-                )}
-              >
-                Rozliczenia
-              </button>
-            </div>
           </div>
 
-          <section className="rounded-[30px] border border-black/5 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
-            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
-              <Users size={16} />
-              Osoby i waluta
-            </div>
-            <div className="mt-1 text-sm text-neutral-500">
-              Zarządzaj walutą wyjazdu i uczestnikami wspólnego budżetu.
-            </div>
+          <div className="mt-5 flex gap-2">
+            <input
+              className="w-24 rounded-[24px] border border-violet-100 bg-violet-50/40 px-4 py-4 text-sm font-black text-slate-900 outline-none"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+              placeholder="EUR"
+            />
+            <input
+              className="min-w-0 flex-1 rounded-[24px] border border-violet-100 bg-violet-50/40 px-4 py-4 text-sm font-bold text-slate-900 outline-none"
+              value={newPerson}
+              onChange={(e) => setNewPerson(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addPerson();
+              }}
+              placeholder="Dodaj osobę"
+            />
+            <button
+              onClick={addPerson}
+              className="rounded-[24px] bg-slate-950 px-4 py-4 text-sm font-black text-white"
+            >
+              +
+            </button>
+          </div>
 
-            <div className="mt-4 flex gap-2">
-              <input
-                className="w-24 rounded-2xl border border-black/5 bg-[#f8fafc] px-3 py-3 text-sm outline-none transition focus:bg-white"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                placeholder="EUR"
-              />
-              <input
-                className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-[#f8fafc] px-3 py-3 text-sm outline-none transition focus:bg-white"
-                value={newPerson}
-                onChange={(e) => setNewPerson(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") addPerson();
-                }}
-                placeholder="Dodaj osobę"
-              />
-              <button
-                onClick={addPerson}
-                className="shrink-0 rounded-2xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white active:scale-[0.98]"
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+            {people.map((p) => (
+              <div
+                key={p}
+                className="relative shrink-0 rounded-full border border-violet-100 bg-white pl-4 pr-10 py-2 text-sm font-bold text-slate-700 shadow-sm"
               >
-                Dodaj
-              </button>
-            </div>
+                {p}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {people.map((p) => (
-                <div
-                  key={p}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-black/5 bg-[#f8fafc] px-3 py-2 text-sm shadow-sm"
+                <button
+                  type="button"
+                  onClick={() => removePerson(p)}
+                  className="absolute right-1 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-rose-50 text-[11px] font-black text-rose-500 transition hover:bg-rose-100 hover:text-rose-700"
+                  aria-label={`Usuń ${p}`}
                 >
-                  <span className="font-semibold text-neutral-800">{p}</span>
-                  <button
-                    onClick={() => removePerson(p)}
-                    className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {activeTab === "expenses" && (
-          <section className="rounded-[30px] border border-black/5 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">Dodaj wydatek</div>
-            <div className="mt-1 text-sm text-neutral-500">
-              Dodaj nowy koszt podróży i od razu podziel go między uczestników.
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <input
-                className="w-full rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Np. kolacja, bilety, hotel"
-              />
-
-              <div className="flex gap-2">
-                <input
-                  className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm outline-none transition focus:bg-white"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="Kwota"
-                />
-                <div className="min-w-0 flex-1 rounded-2xl border border-black/5 bg-[#f8fafc] px-4 py-3 text-sm font-semibold text-neutral-800">
-                  {paidBy || "Kto zapłacił?"}
-                </div>
+                  ×
+                </button>
               </div>
+            ))}
+          </div>
+        </section>
 
-              <div>
-                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                  Kto zapłacił?
+        {activeTab === "expenses" && (
+          <>
+            <section className="rounded-[40px] border border-violet-100/70 bg-[linear-gradient(180deg,#ffffff_0%,#fbf8ff_100%)] p-6 shadow-[0_28px_80px_rgba(124,58,237,0.12)]">
+              <h2 className="text-[28px] font-black tracking-tight text-slate-950">
+                Add expense
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Quick add a cost and split it with your group.
+              </p>
+
+              <div className="mt-6 space-y-4">
+                <input
+                  className="w-full rounded-[30px] border border-violet-100 bg-white px-5 py-5 text-[16px] font-bold text-slate-950 outline-none shadow-[0_12px_34px_rgba(124,58,237,0.07)]"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Np. hotel, kolacja, bilety"
+                />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    className="rounded-[30px] border border-violet-100 bg-white px-5 py-5 text-[16px] font-bold text-slate-950 outline-none shadow-[0_12px_34px_rgba(124,58,237,0.07)]"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="Kwota"
+                  />
+                  <div className="rounded-[30px] border border-violet-100 bg-white px-5 py-5 text-[16px] font-bold text-slate-700 shadow-[0_12px_34px_rgba(124,58,237,0.07)]">
+                    {paidBy || "Kto zapłacił?"}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {people.map((p) => {
-                    const active = paidBy === p;
-                    return (
+
+                <div className="space-y-3">
+                  <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Paid by
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {people.map((p) => (
                       <button
                         key={p}
                         type="button"
                         onClick={() => setPaidBy(p)}
                         className={cx(
-                          "rounded-2xl border px-3 py-2.5 text-sm font-semibold transition shadow-sm",
-                          active
-                            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                            : "border-black/5 bg-white text-neutral-700"
+                          "shrink-0 rounded-full px-4 py-3 text-sm font-black",
+                          paidBy === p
+                            ? "bg-violet-600 text-white shadow-[0_12px_28px_rgba(124,58,237,0.22)]"
+                            : "border border-violet-100 bg-white text-slate-600"
                         )}
                       >
                         {p}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                  Podziel między
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {people.map((p) => {
-                    const active = splitAmong.includes(p);
-                    return (
+                <div className="space-y-3">
+                  <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Split with
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {people.map((p) => (
                       <button
                         key={p}
+                        type="button"
                         onClick={() => toggleSplit(p)}
                         className={cx(
-                          "rounded-2xl border px-3 py-2.5 text-sm font-semibold transition shadow-sm",
-                          active
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-black/5 bg-white text-neutral-700"
+                          "shrink-0 rounded-full px-4 py-3 text-sm font-black",
+                          splitAmong.includes(p)
+                            ? "bg-emerald-500 text-white shadow-[0_12px_28px_rgba(16,185,129,0.20)]"
+                            : "border border-violet-100 bg-white text-slate-600"
                         )}
                       >
                         {p}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={addExpense}
+                  className="w-full rounded-[30px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_60%,#8b5cf6_100%)] px-5 py-5 text-[15px] font-black text-white shadow-[0_24px_60px_rgba(124,58,237,0.32)] active:scale-[0.98]"
+                >
+                  Dodaj wydatek
+                </button>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h2 className="text-[24px] font-black tracking-tight text-slate-950">
+                    Recent expenses
+                  </h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500">
+                    Latest costs from this trip.
+                  </p>
                 </div>
               </div>
 
-              <button
-                className="w-full rounded-2xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-white shadow-sm"
-                onClick={addExpense}
-              >
-                Dodaj wydatek
-              </button>
-            </div>
-          </section>
-          )}
-
-          {activeTab === "balances" && (
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">Salda osób</div>
-
-            <div className="mt-4 space-y-3">
-              {sortedBalances.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-neutral-300 bg-[#F8F8F6] px-4 py-5 text-center text-sm text-neutral-500">
-                  Brak danych.
-                </div>
-              ) : (
-                sortedBalances.map(([name, cents]) => {
-                  const amountValue = fromCents(Math.abs(cents));
-                  const positive = cents > 0;
-                  const zero = cents === 0;
-
-                  return (
-                    <div
-                      key={name}
-                      className="flex items-center justify-between rounded-[24px] border border-black/5 bg-white p-3"
-                    >
-                      <div className="text-sm font-semibold text-neutral-900">{name}</div>
-                      <div
-                        className={cx(
-                          "rounded-2xl px-3 py-1.5 text-sm font-semibold",
-                          zero && "bg-neutral-100 text-neutral-500",
-                          positive && "bg-emerald-50 text-emerald-700",
-                          cents < 0 && "bg-rose-50 text-rose-700"
-                        )}
-                      >
-                        {zero ? "0" : positive ? "+" : "-"}
-                        {fmt(amountValue, currency)}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </section>
-          )}
-
-          {activeTab === "settlements" && (
-          <section className="rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
-              <ArrowRightLeft size={16} />
-              Kto komu oddaje
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {transfers.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-neutral-300 bg-[#F8F8F6] px-4 py-5 text-center text-sm text-neutral-500">
-                  Brak rozliczeń.
-                </div>
-              ) : (
-                transfers.map((t, idx) => (
-                  <div
-                    key={`${t.from}-${t.to}-${idx}`}
-                    className="flex items-center justify-between rounded-[24px] border border-black/5 bg-white p-3"
-                  >
-                    <div className="min-w-0 text-sm text-neutral-700">
-                      <span className="font-semibold text-neutral-900">{t.from}</span>
-                      <span className="mx-2 text-neutral-400">→</span>
-                      <span className="font-semibold text-neutral-900">{t.to}</span>
-                    </div>
-                    <div className="rounded-2xl bg-[#F4EEE4] px-3 py-1.5 text-sm font-semibold text-neutral-900">
-                      {fmt(fromCents(t.cents), currency)}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-          )}
-
-          {activeTab === "expenses" && (
-          <section className="rounded-[30px] border border-black/5 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
-            <div className="text-sm font-semibold text-neutral-900">Wydatki</div>
-            <div className="mt-1 text-sm text-neutral-500">
-              Lista wszystkich dodanych kosztów podróży.
-            </div>
-
-            <div className="mt-4 space-y-3">
               {expenses.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-neutral-300 bg-[#F8F8F6] px-4 py-6 text-center text-sm text-neutral-500">
-                  Brak wydatków. Dodaj pierwszy wydatek powyżej.
+                <div className="rounded-[34px] border border-dashed border-violet-200 bg-white/80 px-5 py-8 text-center text-sm font-semibold text-slate-500">
+                  Brak wydatków.
                 </div>
               ) : (
                 expenses.map((e) => (
                   <div
                     key={e.id}
-                    className="rounded-[26px] border border-black/5 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-4 shadow-sm"
+                    className="rounded-[34px] border border-violet-100/70 bg-white p-5 shadow-[0_18px_44px_rgba(15,23,42,0.06)]"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="break-words text-sm font-semibold text-neutral-900">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-[17px] font-black tracking-tight text-slate-950">
                           {e.title}
                         </div>
-                        <div className="mt-2 text-xs text-neutral-500">
-                          Zapłacił(a):{" "}
-                          <span className="font-semibold text-neutral-700">{e.paidBy}</span>
+                        <div className="mt-2 text-sm font-medium text-slate-500">
+                          Paid by <span className="font-bold text-slate-700">{e.paidBy}</span>
                         </div>
-                        <div className="mt-1 text-xs text-neutral-500">
-                          Podział: {e.splitAmong.join(", ")}
+                        <div className="mt-1 text-xs text-slate-400">
+                          Split: {e.splitAmong.join(", ")}
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-end gap-2">
-                        <div className="rounded-2xl bg-[#f5f7fb] px-3 py-1.5 text-sm font-semibold text-neutral-900">
+                      <div className="flex flex-col items-end gap-3">
+                        <div className="rounded-full bg-violet-50 px-4 py-2 text-sm font-black text-violet-700">
                           {fmt(e.amount, currency)}
                         </div>
                         <button
                           onClick={() => removeExpense(e.id)}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700"
+                          className="grid h-9 w-9 place-items-center rounded-2xl bg-rose-50 text-rose-600"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -707,12 +556,72 @@ function BudgetInner({ tripId }: { tripId: string }) {
                   </div>
                 ))
               )}
+            </section>
+          </>
+        )}
+
+        {activeTab === "balances" && (
+          <section className="rounded-[38px] border border-violet-100/70 bg-white p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)]">
+            <h2 className="text-[24px] font-black tracking-tight text-slate-950">
+              Group balances
+            </h2>
+
+            <div className="mt-5 space-y-3">
+              {sortedBalances.map(([name, cents]) => (
+                <div
+                  key={name}
+                  className="flex items-center justify-between rounded-[30px] border border-violet-100/60 bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.05)]"
+                >
+                  <div className="font-black text-slate-900">{name}</div>
+                  <div
+                    className={cx(
+                      "rounded-full px-4 py-2 text-sm font-black",
+                      cents === 0 && "bg-slate-100 text-slate-500",
+                      cents > 0 && "bg-emerald-50 text-emerald-700",
+                      cents < 0 && "bg-rose-50 text-rose-700"
+                    )}
+                  >
+                    {cents === 0 ? "0" : cents > 0 ? "+" : "-"}
+                    {fmt(fromCents(Math.abs(cents)), currency)}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
-          )}
-        </div>
-      </div>
+        )}
 
+        {activeTab === "settlements" && (
+          <section className="rounded-[38px] border border-violet-100/70 bg-white p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)]">
+            <h2 className="text-[24px] font-black tracking-tight text-slate-950">
+              Settlements
+            </h2>
+
+            <div className="mt-5 space-y-3">
+              {transfers.length === 0 ? (
+                <div className="rounded-[30px] border border-dashed border-violet-200 bg-violet-50/40 px-5 py-8 text-center text-sm font-semibold text-slate-500">
+                  Brak rozliczeń.
+                </div>
+              ) : (
+                transfers.map((t, idx) => (
+                  <div
+                    key={`${t.from}-${t.to}-${idx}`}
+                    className="flex items-center justify-between rounded-[30px] border border-violet-100/60 bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.05)]"
+                  >
+                    <div className="min-w-0 text-sm text-slate-600">
+                      <span className="font-black text-slate-950">{t.from}</span>
+                      <span className="mx-2 text-slate-400">→</span>
+                      <span className="font-black text-slate-950">{t.to}</span>
+                    </div>
+                    <div className="rounded-full bg-violet-50 px-4 py-2 text-sm font-black text-violet-700">
+                      {fmt(fromCents(t.cents), currency)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        )}
+      </div>
     </main>
   );
 }

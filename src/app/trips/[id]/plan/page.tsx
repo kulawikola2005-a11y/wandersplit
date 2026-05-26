@@ -376,26 +376,21 @@ function SortablePlanItem({
         </button>
 
         <div className="min-w-0 flex-1">
-          <div className="mb-2 flex flex-wrap gap-2">
-            <span className="rounded-full bg-[#f5f7fb] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {item.day || "Day 1"}
-            </span>
-            <span className="rounded-full bg-[#f5f7fb] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {statusLabel(item.status)}
-            </span>
-
-            <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-700">
-              📍 {stopName(item.stop_id)}
-            </span>
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+            {item.day || "Day 1"} · {statusLabel(item.status)}
           </div>
 
           <div
             className={cx(
-              "text-[15px] font-semibold leading-6 text-white break-words",
+              "text-[15px] font-bold leading-6 text-slate-950 break-words",
               item.status === "done" && "text-slate-400 line-through"
             )}
           >
             {item.text}
+          </div>
+
+          <div className="mt-2 text-[12px] font-semibold text-violet-500">
+            📍 {stopName(item.stop_id)}
           </div>
         </div>
 
@@ -984,7 +979,7 @@ function PlanInner({ tripId }: { tripId: string }) {
       {open ? (
         <div className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
           <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[430px]" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="rounded-t-[34px] bg-[#FCFCFA] p-5 pb-7 shadow-[0_-24px_80px_rgba(15,23,42,0.28)]">
+            <div className="max-h-[88vh] overflow-y-auto rounded-t-[34px] bg-[#FCFCFA] p-5 pb-2 shadow-[0_-24px_80px_rgba(15,23,42,0.28)]">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-lg font-extrabold tracking-tight text-slate-900">
@@ -994,13 +989,24 @@ function PlanInner({ tripId }: { tripId: string }) {
                     Połącz zadanie z miejscem, dniem i typem aktywności.
                   </div>
                 </div>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
-                  title="Zamknij"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={addOrSave}
+                    disabled={!text.trim()}
+                    className="rounded-2xl bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] px-4 py-2.5 text-xs font-extrabold text-white shadow-[0_12px_26px_rgba(124,58,237,0.25)] disabled:opacity-40"
+                  >
+                    Dodaj
+                  </button>
+
+                  <button
+                    onClick={() => setOpen(false)}
+                    className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50"
+                    title="Zamknij"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               <div className="mt-5">
@@ -1018,6 +1024,15 @@ function PlanInner({ tripId }: { tripId: string }) {
                   spellCheck={false}
                   className="min-h-[96px] w-full resize-none rounded-[26px] border border-slate-200 bg-white px-4 py-4 text-[15px] font-semibold leading-6 text-slate-900 outline-none shadow-sm placeholder:text-slate-400 focus:border-slate-300 focus:bg-white"
                 />
+
+                <button
+                  type="button"
+                  onClick={addOrSave}
+                  disabled={!text.trim()}
+                  className="mt-3 w-full rounded-[24px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] px-5 py-4 text-sm font-extrabold text-white shadow-[0_18px_40px_rgba(124,58,237,0.28)] disabled:opacity-40 active:scale-[0.98]"
+                >
+                  {editingId ? "Zapisz zmiany" : "Dodaj do planu"}
+                </button>
               </div>
 
               <div className="mt-4">
@@ -1095,11 +1110,12 @@ function PlanInner({ tripId }: { tripId: string }) {
                 ))}
               </div>
 
-              <div className="mt-4">
+              <div className="sticky bottom-0 z-20 -mx-5 mt-5 border-t border-slate-100 bg-[#FCFCFA]/95 px-5 pb-2 pt-3 backdrop-blur">
                 <button
                   type="button"
                   onClick={addOrSave}
-                  className="flex w-full items-center justify-center rounded-[24px] bg-slate-900 px-5 py-4 text-sm font-extrabold text-white shadow-[0_18px_40px_rgba(15,23,42,0.24)] active:scale-[0.98]"
+                  disabled={!text.trim()}
+                  className="flex w-full items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] px-5 py-4 text-sm font-extrabold text-white shadow-[0_18px_40px_rgba(124,58,237,0.28)] disabled:opacity-40 active:scale-[0.98]"
                 >
                   {editingId ? "Zapisz zmiany" : "Dodaj do planu"}
                 </button>
