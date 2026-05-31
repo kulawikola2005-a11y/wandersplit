@@ -211,9 +211,9 @@ function SortableStopItem({
               <button
                 onClick={() => onRemove(stop.id)}
                 disabled={busy}
-                className="shrink-0 rounded-2xl border border-white/20 bg-rose-400/15 px-3 py-2 text-sm font-medium text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] disabled:opacity-50"
+                className="shrink-0 rounded-full border border-rose-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-rose-500 backdrop-blur-sm transition hover:bg-rose-50 disabled:opacity-50"
               >
-                <Trash2 size={15} />
+                Usuń
               </button>
             </div>
           </div>
@@ -556,7 +556,10 @@ useEffect(() => {
               </div>
 
               <button
-                onClick={optimizeRoute}
+                onClick={() => {
+                    console.log("OPTIMIZE CLICK");
+                    optimizeRoute();
+                  }}
                 disabled={busy}
                 className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-neutral-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] shadow-sm disabled:opacity-50"
               >

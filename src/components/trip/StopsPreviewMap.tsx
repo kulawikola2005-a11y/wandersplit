@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { divIcon, type LatLngExpression } from "leaflet";
 import {
   MapContainer,
@@ -50,7 +50,7 @@ function FitToPoints({ points }: { points: [number, number][] }) {
       }
     }, 180);
 
-    return () => window.clearTimeout(timer);
+  return () => window.clearTimeout(timer);
   }, [map, points]);
 
   return null;
@@ -78,13 +78,14 @@ type RouteMode = "smart" | "direct" | "mixed";
 
 export default function StopsPreviewMap({ items }: { items: StopLike[] }) {
   const [mounted, setMounted] = useState(false);
-  const [routeLine, setRouteLine] = useState<[number, number][]>([]);
-  const [routeLoading, setRouteLoading] = useState(false);
-  const [routeMode, setRouteMode] = useState<RouteMode>("direct");
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const [routeLine, setRouteLine] = useState<[number, number][]>([]);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeMode, setRouteMode] = useState<RouteMode>("direct");
 
   const points = useMemo(() => {
     return items
@@ -249,9 +250,9 @@ export default function StopsPreviewMap({ items }: { items: StopLike[] }) {
             className="h-full w-full"
           >
             <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-              subdomains={["a", "b", "c", "d"]}
-            />
+            attribution='&copy; OpenStreetMap contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
             <FitToPoints points={points.map((p) => p.position)} />
 
