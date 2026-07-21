@@ -79,3 +79,4 @@ cleanup-backups/
 *.day-ui-backup
 *.params-fix-backup
 *.share-premium-backup
+android/.idea/
