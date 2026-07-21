@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Sparkles, CalendarDays, ArrowRight } from "lucide-react";
+import { Plus, Sparkles, CalendarDays, ArrowRight, UserCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { getTripCoverUrl } from "@/lib/trips/media";
 import { getSmartCover } from "@/lib/trips/getSmartCover";
@@ -63,6 +63,12 @@ export default function TripsPage() {
   const [currency, setCurrency] = useState("EUR");
 
   useEffect(() => {
+    const isLoggedIn = localStorage.getItem("wandersplit:isLoggedIn") === "true";
+    if (!isLoggedIn) {
+      window.location.href = "/login?next=/trips";
+      return;
+    }
+
     async function loadTrips() {
       let localTrips: Trip[] = [];
 
@@ -196,12 +202,13 @@ export default function TripsPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => setOpen(true)}
-                className="shrink-0 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] transition hover:scale-[1.02] active:scale-[0.98]"
+              <Link
+                href="/profile"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/85 text-slate-900 shadow-sm ring-1 ring-black/5 backdrop-blur"
+                aria-label="Profil"
               >
-                Nowy
-              </button>
+                <UserCircle size={22} />
+              </Link>
             </div>
 
             <div className="relative mt-5 flex flex-wrap items-center gap-2">
@@ -302,12 +309,14 @@ export default function TripsPage() {
                 </h2>
               </div>
 
-              <button
-                onClick={() => setOpen(true)}
-                className="rounded-full bg-[#eef2f7] px-3.5 py-2 text-sm font-semibold text-slate-900"
-              >
-                Dodaj
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setOpen(true)}
+                  className="rounded-full bg-[#eef2f7] px-3.5 py-2 text-sm font-semibold text-slate-900"
+                >
+                  Dodaj
+                </button>
+              </div>
             </div>
 
             {trips.length > 0 ? (

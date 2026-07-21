@@ -18,7 +18,7 @@ export default function SharePage() {
   const params = useParams<{ id: string }>();
   const tripId = useMemo(() => (params?.id ? String(params.id) : ""), [params]);
 
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>("demo-user");
   const [shares, setShares] = useState<Share[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,19 +35,14 @@ export default function SharePage() {
     setMsg(null);
 
     const { data: u } = await supabase.auth.getUser();
-    const uid = u.user?.id ?? null;
+    const uid = u.user?.id ?? "demo-user";
     setUserId(uid);
 
     if (!uid || !tripId) return;
 
-    const s = await supabase
-      .from("trip_public_shares")
-      .select("id,token,is_enabled,expires_at,created_at")
-      .eq("trip_id", tripId)
-      .order("created_at", { ascending: false });
-
-    if (s.error) setMsg(s.error.message);
-    else setShares((s.data ?? []) as Share[]);
+    const raw = localStorage.getItem(`wandersplit:shares:${tripId}`);
+    const localShares = raw ? JSON.parse(raw) : [];
+    setShares(Array.isArray(localShares) ? localShares : []);
   }
 
   useEffect(() => {
@@ -60,7 +55,9 @@ export default function SharePage() {
 
   async function createShare() {
     if (!userId) {
-      window.location.href = `/login?next=${encodeURIComponent(`/trips/${tripId}/share`)}`;
+      localStorage.setItem("wandersplit:demoUserId", "demo-user");
+      setUserId("demo-user");
+      setMsg("Tryb demo: jesteś zalogowana lokalnie.");
       return;
     }
 
@@ -79,19 +76,22 @@ export default function SharePage() {
           ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
           : null;
 
-      const ins = await supabase.from("trip_public_shares").insert({
-        trip_id: tripId,
-        created_by: userId,
-        expires_at: expiresAt,
-        is_enabled: true,
-      });
+      const raw = localStorage.getItem(`wandersplit:shares:${tripId}`);
+      const current = raw ? JSON.parse(raw) : [];
 
-      if (ins.error) {
-        setMsg(ins.error.message);
-      } else {
-        setMsg("Public link został utworzony.");
-        await load();
-      }
+      const nextShare = {
+        id: Date.now().toString(),
+        token: `${tripId}-${Date.now()}`,
+        is_enabled: true,
+        expires_at: expiresAt,
+        created_at: new Date().toISOString(),
+      };
+
+      const next = [nextShare, ...(Array.isArray(current) ? current : [])];
+      localStorage.setItem(`wandersplit:shares:${tripId}`, JSON.stringify(next));
+
+      setShares(next);
+      setMsg("Public link został utworzony lokalnie.");
     } finally {
       setBusy(false);
     }
@@ -102,16 +102,12 @@ export default function SharePage() {
     setMsg(null);
 
     try {
-      const upd = await supabase
-        .from("trip_public_shares")
-        .update({ is_enabled: !current })
-        .eq("id", id);
-
-      if (upd.error) setMsg(upd.error.message);
-      else {
-        setMsg(current ? "Link wyłączony." : "Link włączony.");
-        await load();
-      }
+      const next = shares.map((share) =>
+        share.id === id ? { ...share, is_enabled: !current } : share
+      );
+      localStorage.setItem(`wandersplit:shares:${tripId}`, JSON.stringify(next));
+      setShares(next);
+      setMsg(current ? "Link wyłączony." : "Link włączony.");
     } finally {
       setBusy(false);
     }
@@ -122,12 +118,10 @@ export default function SharePage() {
     setMsg(null);
 
     try {
-      const del = await supabase.from("trip_public_shares").delete().eq("id", id);
-      if (del.error) setMsg(del.error.message);
-      else {
-        setMsg("Link usunięty.");
-        await load();
-      }
+      const next = shares.filter((share) => share.id !== id);
+      localStorage.setItem(`wandersplit:shares:${tripId}`, JSON.stringify(next));
+      setShares(next);
+      setMsg("Link usunięty.");
     } finally {
       setBusy(false);
     }
@@ -158,18 +152,8 @@ export default function SharePage() {
     "inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60";
 
   if (!userId) {
-    return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-700">
-            Nie jesteś zalogowana. Przejdź do{" "}
-            <a className="underline" href="/login">
-              /login
-            </a>
-          </p>
-        </div>
-      </div>
-    );
+    setUserId("demo-user");
+    return null;
   }
 
   return (

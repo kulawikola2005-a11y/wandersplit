@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase/client";
-import { isMobile } from "@/lib/mobile/isMobile";
 import { useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const sp = useSearchParams();
@@ -11,76 +10,112 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function signUp() {
-  if (isMobile) {
-    window.location.href = "/trips";
-    return;
-  }
+  async function submit() {
+    if (!email.trim() || !password.trim()) {
+      setMsg("Wpisz email i hasło.");
+      return;
+    }
 
     setLoading(true);
     setMsg(null);
-    const { error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (error) setMsg(error.message);
-    else setMsg("Konto utworzone. Teraz kliknij Sign in.");
-  }
 
-  async function signIn() {
-  if (isMobile) {
-    window.location.href = "/trips";
-    return;
-  }
+    if (mode === "signup") {
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/trips`,
+        },
+      });
 
-    setLoading(true);
-    setMsg(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
+
+      if (error) setMsg(error.message);
+      else setMsg("Konto utworzone. Sprawdź email i potwierdź rejestrację.");
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
     setLoading(false);
+
     if (error) setMsg(error.message);
     else window.location.href = next;
   }
 
   return (
-    <div className="mx-auto max-w-md p-6">
-      <h1 className="text-2xl font-semibold">WanderSplit — login</h1>
-      <p className="mt-1 text-sm text-gray-600">Logowanie email + hasło (lokalnie).</p>
+    <main className="min-h-dvh bg-[linear-gradient(180deg,#f6f4ff_0%,#f8fafc_35%,#ffffff_100%)] px-4 py-8">
+      <div className="mx-auto max-w-[430px] space-y-5">
+        <section className="rounded-[36px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_60%,#8b5cf6_100%)] p-6 text-white shadow-[0_28px_80px_rgba(124,58,237,0.24)]">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/65">
+            WanderSplit
+          </div>
+          <h1 className="mt-3 text-[34px] font-black tracking-tight">
+            {mode === "login" ? "Zaloguj się" : "Załóż konto"}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-white/75">
+            Zapisuj podróże, budżety i plany na swoim koncie.
+          </p>
+        </section>
 
-      <div className="mt-6 space-y-3">
-        <input
-          className="w-full rounded-xl border p-3"
-          placeholder="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          className="w-full rounded-xl border p-3"
-          placeholder="hasło"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <section className="rounded-[34px] border border-violet-100 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
+          <div className="grid grid-cols-2 gap-2 rounded-[24px] bg-violet-50 p-1">
+            <button
+              onClick={() => setMode("login")}
+              className={mode === "login" ? "rounded-[20px] bg-white px-4 py-3 text-sm font-black text-slate-950 shadow-sm" : "rounded-[20px] px-4 py-3 text-sm font-bold text-slate-500"}
+            >
+              Login
+            </button>
+            <button
+              onClick={() => setMode("signup")}
+              className={mode === "signup" ? "rounded-[20px] bg-white px-4 py-3 text-sm font-black text-slate-950 shadow-sm" : "rounded-[20px] px-4 py-3 text-sm font-bold text-slate-500"}
+            >
+              Konto
+            </button>
+          </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={signUp}
-            disabled={loading}
-            className="rounded-xl border px-4 py-2"
-          >
-            Sign up
-          </button>
-          <button
-            onClick={signIn}
-            disabled={loading}
-            className="rounded-xl bg-black px-4 py-2 text-white"
-          >
-            Sign in
-          </button>
-        </div>
+          <div className="mt-5 space-y-3">
+            <input
+              className="w-full rounded-[24px] border border-violet-100 bg-violet-50/40 px-4 py-4 text-sm font-bold text-slate-950 outline-none"
+              placeholder="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
-        {msg ? <p className="text-sm text-gray-700">{msg}</p> : null}
+            <input
+              className="w-full rounded-[24px] border border-violet-100 bg-violet-50/40 px-4 py-4 text-sm font-bold text-slate-950 outline-none"
+              placeholder="hasło"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
+            />
+
+            <button
+              onClick={submit}
+              disabled={loading}
+              className="w-full rounded-[24px] bg-slate-950 px-5 py-4 text-sm font-black text-white disabled:opacity-50"
+            >
+              {loading ? "Chwila..." : mode === "login" ? "Zaloguj się" : "Załóż konto"}
+            </button>
+
+            {msg ? (
+              <div className="rounded-2xl bg-violet-50 px-4 py-3 text-sm font-bold text-violet-700">
+                {msg}
+              </div>
+            ) : null}
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

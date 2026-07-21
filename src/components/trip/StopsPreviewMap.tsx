@@ -1,16 +1,5 @@
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
-import { divIcon, type LatLngExpression } from "leaflet";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Tooltip,
-  Polyline,
-  useMap,
-} from "react-leaflet";
-
 type StopLike = {
   id: string;
   name: string;
@@ -18,283 +7,50 @@ type StopLike = {
   lng: number | null;
 };
 
-function FitToPoints({ points }: { points: [number, number][] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!points.length) return;
-
-    const timer = window.setTimeout(() => {
-      try {
-        map.invalidateSize();
-
-        requestAnimationFrame(() => {
-          try {
-            if (!map || !(map as any)._loaded) return;
-
-            if (points.length === 1) {
-              map.setView(points[0], 7, { animate: false });
-              return;
-            }
-
-            map.fitBounds(points, {
-              padding: [24, 24],
-              animate: false,
-            });
-          } catch (error) {
-            console.warn("Leaflet animation fix:", error);
-          }
-        });
-      } catch (error) {
-        console.warn("FitToPoints warning:", error);
-      }
-    }, 180);
-
-  return () => window.clearTimeout(timer);
-  }, [map, points]);
-
-  return null;
-}
-
-function haversineKm(a: [number, number], b: [number, number]) {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
-
-  const dLat = toRad(b[0] - a[0]);
-  const dLng = toRad(b[1] - a[1]);
-
-  const q =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(a[0])) *
-      Math.cos(toRad(b[0])) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1 - q));
-  return R * c;
-}
-
-type RouteMode = "smart" | "direct" | "mixed";
-
 export default function StopsPreviewMap({ items }: { items: StopLike[] }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const [routeLine, setRouteLine] = useState<[number, number][]>([]);
-  const [routeLoading, setRouteLoading] = useState(false);
-  const [routeMode, setRouteMode] = useState<RouteMode>("direct");
-
-  const points = useMemo(() => {
-    return items
-      .filter((item) => item.lat != null && item.lng != null)
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        position: [Number(item.lat), Number(item.lng)] as [number, number],
-        orsCoord: [Number(item.lng), Number(item.lat)] as [number, number],
-      }));
-  }, [items]);
-
-  const center = useMemo<LatLngExpression>(() => {
-    if (!points.length) return [52.2297, 21.0122];
-    return points[0].position;
-  }, [points]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadRoute() {
-      if (points.length < 2) {
-        setRouteLine(points.map((point) => [point.position[0], point.position[1]] as [number, number]));
-        setRouteMode("direct");
-        return;
-      }
-
-      try {
-        setRouteLoading(true);
-
-        const merged: [number, number][] = [];
-        let usedSmart = false;
-        let usedDirect = false;
-
-        for (let i = 0; i < points.length - 1; i += 1) {
-          const start = points[i];
-          const end = points[i + 1];
-          const distanceKm = haversineKm(start.position, end.position);
-
-          if (distanceKm > 700) {
-            const directSegment: [number, number][] = [start.position, end.position];
-
-            if (merged.length === 0) merged.push(...directSegment);
-            else merged.push(...directSegment.slice(1));
-
-            usedDirect = true;
-            continue;
-          }
-
-          try {
-            const res = await fetch("/api/route", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                profile: "driving-car",
-                coordinates: [start.orsCoord, end.orsCoord],
-              }),
-            });
-
-            const data = await res.json().catch(() => null);
-
-            if (!res.ok || !data) {
-              throw new Error("Nie udało się pobrać segmentu");
-            }
-
-            const coords = data?.features?.[0]?.geometry?.coordinates;
-
-            if (!Array.isArray(coords)) {
-              throw new Error("Brak geometrii segmentu");
-            }
-
-            const latLngs = coords
-              .filter(
-                (coord: unknown) =>
-                  Array.isArray(coord) &&
-                  coord.length === 2 &&
-                  Number.isFinite(coord[0]) &&
-                  Number.isFinite(coord[1])
-              )
-              .map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
-
-            if (!latLngs.length) {
-              throw new Error("Pusty segment");
-            }
-
-            if (merged.length === 0) merged.push(...latLngs);
-            else merged.push(...latLngs.slice(1));
-
-            usedSmart = true;
-          } catch (segmentError) {
-            console.warn("Segment fallback:", segmentError);
-
-            const directSegment: [number, number][] = [start.position, end.position];
-
-            if (merged.length === 0) merged.push(...directSegment);
-            else merged.push(...directSegment.slice(1));
-
-            usedDirect = true;
-          }
-        }
-
-        if (!cancelled) {
-          setRouteLine(merged);
-
-          if (usedSmart && usedDirect) setRouteMode("mixed");
-          else if (usedSmart) setRouteMode("smart");
-          else setRouteMode("direct");
-        }
-      } catch (error) {
-        console.warn("Route preview global fallback:", error);
-        if (!cancelled) {
-          setRouteLine(points.map((point) => [point.position[0], point.position[1]] as [number, number]));
-          setRouteMode("direct");
-        }
-      } finally {
-        if (!cancelled) {
-          setRouteLoading(false);
-        }
-      }
-    }
-
-    loadRoute();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [points]);
-
-  if (!points.length) {
-    return (
-      <div className="flex h-full items-center justify-center px-4 text-center text-sm text-neutral-500">
-        Dodaj przystanki z współrzędnymi, aby zobaczyć mapę.
-      </div>
-    );
-  }
-
-  const line = routeLine.length >= 2 ? routeLine : points.map((point) => point.position);
-
-  const routeLabel =
-    routeLoading
-      ? "Loading route…"
-      : routeMode === "mixed"
-      ? "Smart + direct"
-      : routeMode === "smart"
-      ? "Route calculated"
-      : "Direct line";
+  const points = items.slice(0, 5);
 
   return (
-    <div className="relative h-full w-full">
-      {!mounted ? (
-        <div className="flex h-full items-center justify-center text-sm text-neutral-500">
-          Ładowanie mapy…
+    <div className="relative h-full w-full overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,#dbeafe_0%,#dcfce7_48%,#fef3c7_100%)]">
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 320 420" preserveAspectRatio="none">
+        <path
+          d="M92 390 C 120 330, 120 300, 155 250 S 188 190, 170 150 S 210 92, 214 30"
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth="5"
+          strokeLinecap="round"
+          opacity="0.9"
+        />
+      </svg>
+
+      {points.length === 0 ? (
+        <div className="absolute inset-0 grid place-items-center px-8 text-center">
+          <div>
+            <div className="text-3xl">🗺️</div>
+            <div className="mt-3 text-sm font-black text-slate-800">Dodaj pierwszy przystanek</div>
+            <div className="mt-1 text-xs font-semibold text-slate-500">Podgląd trasy pojawi się tutaj.</div>
+          </div>
         </div>
       ) : (
-        <>
-          <MapContainer
-            key={points.map((p) => p.id).join("-")}
-            center={center}
-            zoom={5}
-            scrollWheelZoom={false}
-            attributionControl={false}
-            className="h-full w-full"
-          >
-            <TileLayer
-            attribution='&copy; OpenStreetMap contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+        points.map((point, index) => {
+          const positions = [
+            { left: "22%", top: "86%" },
+            { left: "34%", top: "70%" },
+            { left: "50%", top: "50%" },
+            { left: "61%", top: "30%" },
+            { left: "63%", top: "11%" },
+          ];
 
-            <FitToPoints points={points.map((p) => p.position)} />
-
-            {line.length >= 2 ? (
-              <Polyline positions={line} pathOptions={{ weight: 4, opacity: 0.85 }} />
-            ) : null}
-
-            {points.map((point, index) => (
-              <Marker
-                key={point.id}
-                position={point.position}
-                icon={divIcon({
-                  className: "",
-                  html: `<div style="
-                    width: 34px;
-                    height: 34px;
-                    border-radius: 999px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: linear-gradient(135deg,#111827,#4f46e5);
-                    color: white;
-                    font-size: 13px;
-                    font-weight: 800;
-                    border: 3px solid rgba(255,255,255,0.95);
-                    box-shadow: 0 12px 28px rgba(15,23,42,0.28);
-                  ">${index + 1}</div>`,
-                  iconSize: [34, 34],
-                  iconAnchor: [17, 17],
-                })}
-              >
-                <Tooltip direction="top" offset={[0, -12]} opacity={1}>
-                  {index + 1}. {point.name}
-                </Tooltip>
-              </Marker>
-            ))}
-          </MapContainer>
-
-          <div className="pointer-events-none absolute bottom-4 right-4 z-[400] rounded-full border border-white/70 bg-white/90 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-600 shadow-lg backdrop-blur">
-            {routeLabel}
-          </div>
-        </>
+          return (
+            <div
+              key={point.id}
+              className="absolute grid h-9 w-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] text-xs font-black text-white shadow-[0_10px_24px_rgba(76,29,149,0.35)]"
+              style={positions[index]}
+            >
+              {index + 1}
+            </div>
+          );
+        })
       )}
     </div>
   );

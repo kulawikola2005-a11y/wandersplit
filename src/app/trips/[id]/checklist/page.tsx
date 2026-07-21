@@ -268,21 +268,21 @@ export default function ChecklistPage() {
   const todoCount = items.length - doneCount;
 
   return (
-    <main className="min-h-dvh bg-[linear-gradient(180deg,#f6f4ff_0%,#f8fafc_22%,#ffffff_100%)] pb-40">
-      <div className="px-4 pt-6">
-        <div className="mx-auto max-w-xl space-y-7">
-          <header className="overflow-hidden rounded-[38px] border border-white/60 bg-white/90 backdrop-blur shadow-[0_30px_80px_rgba(124,58,237,0.14)]">
-            <div className="bg-[linear-gradient(135deg,#1e1b4b_0%,#312e81_45%,#7c3aed_100%)] px-6 py-8 text-white">
+    <main className="min-h-dvh bg-[linear-gradient(180deg,#f6f4ff_0%,#f8fafc_22%,#ffffff_100%)] pb-28">
+      <div className="px-4 pt-7">
+        <div className="mx-auto max-w-xl space-y-6">
+          <header className="overflow-hidden rounded-[32px] border border-white/60 bg-white/90 backdrop-blur shadow-[0_30px_80px_rgba(124,58,237,0.14)]">
+            <div className="bg-[linear-gradient(135deg,#1e1b4b_0%,#312e81_45%,#7c3aed_100%)] px-5 py-6 text-white">
               <div className="flex items-center gap-2 text-sm font-medium text-white/80">
                 <ListChecks size={16} />
                 Checklist
               </div>
 
-              <h1 className="mt-3 text-[34px] font-black tracking-[-0.04em] leading-[1.05]">
+              <h1 className="mt-3 text-[30px] font-black tracking-[-0.04em] leading-[1.05]">
                 Lista przygotowań
               </h1>
 
-              <p className="mt-4 max-w-sm text-[15px] leading-7 text-white/72">
+              <p className="mt-3 max-w-sm text-[14px] leading-6 text-white/72">
                 Spakuj rzeczy, odhacz zadania i trzymaj przygotowania pod kontrolą.
               </p>
 
@@ -334,7 +334,7 @@ export default function ChecklistPage() {
             </div>
           )}
 
-          <section className="rounded-[40px] border border-violet-100/60 bg-[linear-gradient(180deg,#ffffff_0%,#fcfbff_100%)] p-6 backdrop-blur shadow-[0_30px_80px_rgba(124,58,237,0.10)]">
+          <section className="rounded-[32px] border border-violet-100/60 bg-[linear-gradient(180deg,#ffffff_0%,#fcfbff_100%)] p-5 backdrop-blur shadow-[0_30px_80px_rgba(124,58,237,0.10)]">
             <div className="mb-4">
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">
                 Dni przygotowań
@@ -352,8 +352,8 @@ export default function ChecklistPage() {
                   onClick={() => setSelectedDay(day)}
                   className={
                     selectedDay === day
-                      ? "min-w-[130px] snap-start rounded-[28px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] px-4 py-4 text-left text-white shadow-[0_18px_40px_rgba(124,58,237,0.24)]"
-                      : "min-w-[130px] snap-start rounded-[28px] border border-violet-100 bg-white px-4 py-4 text-left text-slate-900 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
+                      ? "min-w-[118px] snap-start rounded-[24px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] px-4 py-4 text-left text-white shadow-[0_18px_40px_rgba(124,58,237,0.24)]"
+                      : "min-w-[118px] snap-start rounded-[24px] border border-violet-100 bg-white px-4 py-4 text-left text-slate-900 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
                   }
                 >
                   <div className={selectedDay === day ? "text-[10px] font-bold uppercase tracking-[0.16em] text-white/65" : "text-[10px] font-bold uppercase tracking-[0.16em] text-violet-400"}>
@@ -370,9 +370,9 @@ export default function ChecklistPage() {
             </div>
           </section>
 
-          <section className="rounded-[40px] border border-violet-100/60 bg-[linear-gradient(180deg,#ffffff_0%,#fcfbff_100%)] p-6 backdrop-blur shadow-[0_30px_80px_rgba(124,58,237,0.10)]">
+          <section className="rounded-[32px] border border-violet-100/60 bg-[linear-gradient(180deg,#ffffff_0%,#fcfbff_100%)] p-5 backdrop-blur shadow-[0_30px_80px_rgba(124,58,237,0.10)]">
             <div>
-              <div className="text-[28px] font-black tracking-tight text-slate-950">
+              <div className="text-[22px] font-black tracking-tight text-slate-950">
                 Co chcesz zaplanować?
               </div>
 
@@ -426,7 +426,7 @@ export default function ChecklistPage() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Np. paszport, ładowarka, rezerwacja hotelu..."
-                className="w-full rounded-[30px] border border-violet-100/70 bg-white/90 px-5 py-5 text-[16px] font-semibold text-slate-900 outline-none shadow-[0_10px_30px_rgba(124,58,237,0.06)] placeholder:text-slate-400"
+                className="w-full rounded-[30px] border border-violet-100/70 bg-white/90 px-5 py-4 text-[15px] font-semibold text-slate-900 outline-none shadow-[0_10px_30px_rgba(124,58,237,0.06)] placeholder:text-slate-400"
                 disabled={!editable || busy}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") onAdd();
@@ -437,7 +437,7 @@ export default function ChecklistPage() {
                 type="button"
                 onClick={onAdd}
                 disabled={!editable || busy || !text.trim()}
-                className="w-full rounded-[28px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_55%,#8b5cf6_100%)] px-5 py-5 text-[15px] font-black tracking-tight text-white shadow-[0_22px_50px_rgba(124,58,237,0.28)] transition active:scale-[0.98]"
+                className="w-full rounded-[24px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_55%,#8b5cf6_100%)] px-5 py-4 text-[14px] font-black tracking-tight text-white shadow-[0_22px_50px_rgba(124,58,237,0.28)] transition active:scale-[0.98]"
               >
                 {busy ? "Dodawanie..." : "Dodaj zadanie"}
               </button>
@@ -485,11 +485,11 @@ export default function ChecklistPage() {
           </section>
 
           {loading ? (
-            <div className="rounded-[28px] border border-black/5 bg-white px-4 py-6 text-center text-sm text-neutral-500 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+            <div className="rounded-[24px] border border-black/5 bg-white px-4 py-6 text-center text-sm text-neutral-500 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
               Ładowanie…
             </div>
           ) : filtered.length === 0 ? (
-            <div className="overflow-hidden rounded-[28px] border border-black/5 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+            <div className="overflow-hidden rounded-[24px] border border-black/5 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
               <div className="bg-[linear-gradient(135deg,#f4eee4_0%,#f8f8f6_100%)] px-5 py-8 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-neutral-700 shadow-sm">
                   <ListChecks size={22} />
@@ -503,7 +503,7 @@ export default function ChecklistPage() {
               </div>
             </div>
           ) : (
-            <section className="rounded-[40px] border border-violet-100/60 bg-[linear-gradient(180deg,#ffffff_0%,#fcfbff_100%)] p-6 backdrop-blur shadow-[0_30px_80px_rgba(124,58,237,0.10)]">
+            <section className="rounded-[32px] border border-violet-100/60 bg-[linear-gradient(180deg,#ffffff_0%,#fcfbff_100%)] p-5 backdrop-blur shadow-[0_30px_80px_rgba(124,58,237,0.10)]">
               <div className="text-[15px] font-bold tracking-tight text-slate-900">
                 {selectedDay} — lista przygotowań
               </div>

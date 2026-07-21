@@ -135,12 +135,14 @@ function SortableStopItem({
   total,
   busy,
   onRemove,
+  onMove,
 }: {
   stop: LocalStop;
   index: number;
   total: number;
   busy: boolean;
   onRemove: (id: string) => void;
+  onMove: (id: string, direction: "up" | "down") => void;
 }) {
   const {
     attributes,
@@ -208,13 +210,35 @@ function SortableStopItem({
                   : "Brak współrzędnych"}
               </div>
 
-              <button
-                onClick={() => onRemove(stop.id)}
-                disabled={busy}
-                className="shrink-0 rounded-full border border-rose-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-rose-500 backdrop-blur-sm transition hover:bg-rose-50 disabled:opacity-50"
-              >
-                Usuń
-              </button>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onMove(stop.id, "up")}
+                  disabled={busy || index === 0}
+                  className="grid h-8 w-8 place-items-center rounded-full border border-white/20 bg-white/20 text-xs font-black text-white backdrop-blur disabled:opacity-30"
+                  aria-label="Przesuń w górę"
+                >
+                  ↑
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onMove(stop.id, "down")}
+                  disabled={busy || index === total - 1}
+                  className="grid h-8 w-8 place-items-center rounded-full border border-white/20 bg-white/20 text-xs font-black text-white backdrop-blur disabled:opacity-30"
+                  aria-label="Przesuń w dół"
+                >
+                  ↓
+                </button>
+
+                <button
+                  onClick={() => onRemove(stop.id)}
+                  disabled={busy}
+                  className="rounded-full border border-rose-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-rose-500 backdrop-blur-sm transition hover:bg-rose-50 disabled:opacity-50"
+                >
+                  Usuń
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -374,6 +398,21 @@ useEffect(() => {
     }
   }
 
+  function moveStop(id: string, direction: "up" | "down") {
+    const index = items.findIndex((item) => item.id === id);
+    if (index === -1) return;
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+
+    const next = [...items];
+    const [moved] = next.splice(index, 1);
+    next.splice(targetIndex, 0, moved);
+
+    saveLocal(next.map((item, i) => ({ ...item, sort_order: i + 1 })));
+    setMsg("Zmieniono kolejność przystanków.");
+  }
+
   function removeStop(id: string) {
     setBusy(true);
     setMsg(null);
@@ -432,7 +471,7 @@ useEffect(() => {
     try {
       const optimized = optimizeStopsNearestNeighbor(items);
       saveLocal(optimized);
-      setMsg("✨ Zoptymalizowano kolejność przystanków.");
+      setMsg("Ułożono trasę według najbliższych przystanków. Jeśli kolejność się nie zmieniła, obecna trasa była już najlepsza.");
     } catch (e) {
       console.error(e);
       setMsg("Nie udało się zoptymalizować trasy.");
@@ -449,94 +488,81 @@ useEffect(() => {
     className="min-h-dvh bg-[linear-gradient(180deg,#f5f1ff_0%,#f8fafc_35%,#ffffff_100%)] pb-32">
       <div className="px-4 pt-6">
         <div className="mx-auto max-w-xl space-y-7">
-          <header className="rounded-[36px] border border-violet-100/60 bg-white/90 p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)] backdrop-blur">
+          <header className="rounded-[36px] border border-violet-300/20 bg-[linear-gradient(135deg,#6d28d9_0%,#7c3aed_55%,#a855f7_100%)] p-5 text-white shadow-[0_24px_70px_rgba(124,58,237,0.10)] backdrop-blur">
             <div className="text-slate-950">
-              <div className="flex items-center gap-2 text-sm font-bold text-violet-600">
+              <div className="flex items-center gap-2 text-sm font-bold text-white/90">
                 <MapPin size={16} />
                 Route
               </div>
 
-              <h1 className="mt-3 text-[34px] font-black tracking-[-0.04em]">
+              <h1 className="mt-3 text-[34px] font-black tracking-[-0.04em] text-white">
                 Trasa podróży
               </h1>
 
-              <p className="mt-3 max-w-md text-[15px] font-medium leading-7 text-slate-500">
+              <p className="mt-3 max-w-md text-[15px] font-medium leading-7 text-white/80">
                 Dodawaj miejsca, ustawiaj kolejność i sprawdzaj przebieg wyjazdu na mapie.
               </p>
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-[24px] bg-[#F8F8F6] p-4">
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+              <div className="rounded-[24px] bg-white/18 p-4 border border-white/25 shadow-sm backdrop-blur">
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
                   Przystanki
                 </div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-white">
                   {items.length}
                 </div>
               </div>
 
-              <div className="rounded-[24px] bg-[#EEF2FF] p-4">
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+              <div className="rounded-[24px] bg-white/18 p-4 border border-white/25 shadow-sm backdrop-blur">
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/70">
                   Z mapą
                 </div>
-                <div className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-white">
                   {stopsWithCoords}
                 </div>
               </div>
             </div>
           </header>
 
-          <section className="rounded-[38px] border border-violet-100/70 bg-white/95 p-5 shadow-[0_24px_70px_rgba(124,58,237,0.12)] backdrop-blur">
+          <section className="rounded-[32px] border border-violet-100/70 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)] backdrop-blur">
             <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-500">
               Next stop
             </div>
 
-            <div className="mt-3 flex items-end justify-between gap-4">
-              <div className="min-w-0">
-                <div className="truncate text-[32px] font-black tracking-[-0.04em] text-slate-950">
+            <div className="mt-3">
+              <div className="min-w-0 w-full">
+                <div className="truncate text-[30px] font-black tracking-[-0.04em] text-slate-950">
                   {nextStop ? nextStop.name : "Dodaj miejsce"}
                 </div>
 
                 <div className="mt-2 text-sm font-semibold leading-6 text-slate-500">
                   {items.length > 1
-                    ? `${items.length} przystanków w Twojej trasie`
+                    ? `${items.length} przystanki w Twojej trasie`
                     : "Zbuduj swoją trasę krok po kroku"}
                 </div>
               </div>
-
-              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[22px] bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] text-white shadow-[0_16px_38px_rgba(124,58,237,0.28)]">
-                <Route size={24} />
-              </div>
             </div>
 
-            {routeInsights.length > 0 && (
-              <div className="mt-5 space-y-2">
-                {routeInsights.slice(0, 2).map((note) => (
-                  <div
-                    key={note}
-                    className="rounded-[24px] bg-violet-50 px-4 py-3 text-sm font-semibold leading-6 text-violet-800"
-                  >
-                    ✨ {note}
-                  </div>
-                ))}
-              </div>
-            )}
           </section>
 
-          <section className="relative overflow-hidden rounded-[42px] border border-white/70 bg-white shadow-[0_32px_90px_rgba(124,58,237,0.16)]">
-            <div className="absolute left-4 right-4 top-4 z-20 flex items-center justify-between gap-3 rounded-[28px] border border-white/70 bg-white/85 px-4 py-3 shadow-[0_16px_40px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+          <section className="relative overflow-hidden rounded-[42px] border border-violet-500/20 bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_55%,#a855f7_100%)] shadow-[0_32px_90px_rgba(124,58,237,0.28)]">
+            <div className="absolute left-4 right-4 top-4 z-20 flex items-center justify-between gap-3 rounded-[28px] border border-white/70 bg-white/12 px-4 py-3 shadow-[0_16px_40px_rgba(15,23,42,0.10)] backdrop-blur-xl">
               <div>
-                <div className="text-sm font-semibold text-neutral-900">
+                <div className="text-sm font-semibold text-slate-950">
                   Mapa podróży
                 </div>
-                <div className="mt-1 text-sm text-neutral-500">
+                <div className="mt-1 text-sm text-slate-500">
                   Podgląd przystanków i przebiegu trasy
                 </div>
               </div>
 
-              <div className="rounded-full bg-violet-600 px-4 py-2 text-xs font-black text-white shadow-[0_12px_28px_rgba(124,58,237,0.24)]">
+              <Link
+                href={`/trips/${tripId}/map`}
+                className="rounded-full border border-violet-100 bg-white px-4 py-2 text-xs font-black text-violet-700 shadow-[0_12px_28px_rgba(124,58,237,0.16)] active:scale-[0.98]"
+              >
                 Pełna mapa
-              </div>
+              </Link>
             </div>
 
             <div className="h-[420px] w-full">
@@ -544,28 +570,13 @@ useEffect(() => {
             </div>
           </section>
 
-          <section className="rounded-[38px] border border-violet-100/70 bg-white/95 p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)] backdrop-blur">
+          <section className="rounded-[32px] border border-violet-100/70 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)] backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-neutral-900">
+                <div className="text-sm font-semibold text-slate-950">
                   Przystanki na trasie
                 </div>
-                <div className="text-xs text-neutral-400">
-                  Przytrzymaj ikonę i przeciągnij, aby zmienić kolejność
-                </div>
               </div>
-
-              <button
-                onClick={() => {
-                    console.log("OPTIMIZE CLICK");
-                    optimizeRoute();
-                  }}
-                disabled={busy}
-                className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-neutral-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] shadow-sm disabled:opacity-50"
-              >
-                <Sparkles size={14} />
-                Ułóż trasę
-              </button>
             </div>
 
             {msg && (
@@ -595,66 +606,8 @@ useEffect(() => {
             </div>
           </section>
 
-          {items.length >= 2 && (
-            <section className="rounded-[38px] border border-violet-100/70 bg-white/95 p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)]">
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-500">
-                    Journey flow
-                  </div>
-                  <h2 className="mt-2 text-[24px] font-black tracking-tight text-slate-950">
-                    Kolejność podróży
-                  </h2>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={optimizeRoute}
-                  disabled={busy}
-                  className="rounded-full bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white disabled:opacity-50"
-                >
-                  Ułóż
-                </button>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {items.map((stop, index) => (
-                  <div key={stop.id} className="relative pl-10">
-                    {index < items.length - 1 && (
-                      <div className="absolute left-[15px] top-9 h-[calc(100%+16px)] w-[2px] bg-gradient-to-b from-violet-300 to-transparent" />
-                    )}
-
-                    <div className="absolute left-0 top-1 grid h-8 w-8 place-items-center rounded-full bg-[linear-gradient(135deg,#4c1d95_0%,#8b5cf6_100%)] text-xs font-black text-white shadow-[0_12px_28px_rgba(124,58,237,0.28)]">
-                      {index + 1}
-                    </div>
-
-                    <div className="rounded-[28px] border border-violet-100/70 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
-                      <div className="text-[16px] font-black tracking-tight text-slate-950">
-                        {stop.name}
-                      </div>
-
-                      <div className="mt-2 text-sm font-medium text-slate-500">
-                        {index === 0
-                          ? "Start podróży"
-                          : index === items.length - 1
-                          ? "Finał trasy"
-                          : "Kolejny etap wyjazdu"}
-                      </div>
-
-                      {index < items.length - 1 && (
-                        <div className="mt-3 inline-flex rounded-full bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700">
-                          Dalej: {items[index + 1].name}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
           {loading ? (
-            <div className="rounded-[28px] border border-black/5 bg-white px-4 py-6 text-center text-sm text-neutral-500 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+            <div className="rounded-[28px] border border-black/5 bg-white px-4 py-6 text-center text-sm text-slate-500 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
               Ładowanie…
             </div>
           ) : items.length === 0 ? (
@@ -663,10 +616,10 @@ useEffect(() => {
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-neutral-700 shadow-sm">
                   <MapPin size={22} />
                 </div>
-                <div className="mt-4 text-base font-semibold text-neutral-900">
+                <div className="mt-4 text-base font-semibold text-slate-950">
                   Zaplanuj pierwsze miejsce podróży
                 </div>
-                <div className="mt-2 text-sm leading-6 text-neutral-500">
+                <div className="mt-2 text-sm leading-6 text-slate-500">
                   Dodaj miasto lub punkt trasy, a ekran zacznie wyglądać jak prawdziwa podróż, a nie tylko lista.
                 </div>
               </div>
@@ -691,6 +644,7 @@ useEffect(() => {
                         total={items.length}
                         busy={busy}
                         onRemove={removeStop}
+                        onMove={moveStop}
                       />
                     ))}
                   </div>
@@ -703,7 +657,7 @@ useEffect(() => {
 
       <button
         onClick={() => setSheetOpen(true)}
-        className="fixed bottom-28 right-5 z-50 grid h-16 w-16 place-items-center rounded-full bg-[linear-gradient(135deg,#4c1d95_0%,#7c3aed_100%)] text-white shadow-[0_24px_60px_rgba(124,58,237,0.35)] active:scale-[0.96]"
+        className="fixed bottom-28 right-5 z-50 grid h-16 w-16 place-items-center rounded-full bg-white/15 text-white border border-white/20 backdrop-blur shadow-[0_24px_60px_rgba(124,58,237,0.35)] active:scale-[0.96]"
       >
         <Plus size={26} />
       </button>
@@ -719,8 +673,8 @@ useEffect(() => {
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-neutral-300" />
 
             <div className="mb-4">
-              <h3 className="text-lg font-semibold text-neutral-900">Dodaj przystanek</h3>
-              <p className="mt-1 text-sm text-neutral-500">
+              <h3 className="text-lg font-semibold text-slate-950">Dodaj przystanek</h3>
+              <p className="mt-1 text-sm text-slate-500">
                 Wpisz nazwę miasta lub miejsca
               </p>
             </div>

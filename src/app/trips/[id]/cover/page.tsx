@@ -39,10 +39,8 @@ export default function TripCoverPage() {
         });
 
         const localCover = localStorage.getItem(`wandersplit:cover:${tripId}`);
-        if (localCover) {
-          setCoverUrl(localCover);
-          return;
-        }
+        setCoverUrl(localCover || null);
+        return;
       }
     } catch {}
 

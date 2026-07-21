@@ -363,60 +363,77 @@ function BudgetInner({ tripId }: { tripId: string }) {
           </div>
         </section>
 
-        <section className="rounded-[38px] border border-violet-100/70 bg-white p-5 shadow-[0_24px_70px_rgba(124,58,237,0.10)]">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-[22px] font-black tracking-tight text-slate-950">
-                People & currency
-              </h2>
-              <p className="mt-1 text-sm font-medium text-slate-500">
-                Add travelers and choose currency.
-              </p>
+        <section className="space-y-4">
+          <div className="rounded-[34px] border border-violet-100/70 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-violet-500">
+                  Uczestnicy
+                </div>
+                <h2 className="mt-2 text-[22px] font-black tracking-tight text-slate-950">
+                  {people.length} osoby
+                </h2>
+                <p className="mt-1 text-sm font-medium text-slate-500">
+                  Dodaj osoby do wspólnego budżetu.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+              {people.map((p) => (
+                <div
+                  key={p}
+                  className="relative shrink-0 rounded-full border border-violet-100 bg-violet-50/60 py-2 pl-4 pr-10 text-sm font-bold text-slate-800"
+                >
+                  {p}
+
+                  <button
+                    type="button"
+                    onClick={() => removePerson(p)}
+                    className="absolute right-1 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-white text-[11px] font-black text-rose-500 shadow-sm"
+                    aria-label={`Usuń ${p}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <input
+                className="min-w-0 flex-1 rounded-[24px] border border-violet-100 bg-violet-50/40 px-4 py-4 text-sm font-bold text-slate-900 outline-none"
+                value={newPerson}
+                onChange={(e) => setNewPerson(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addPerson();
+                }}
+                placeholder="Dodaj osobę"
+              />
+              <button
+                onClick={addPerson}
+                className="rounded-[24px] bg-slate-950 px-5 py-4 text-sm font-black text-white"
+              >
+                +
+              </button>
             </div>
           </div>
 
-          <div className="mt-5 flex gap-2">
-            <input
-              className="w-24 rounded-[24px] border border-violet-100 bg-violet-50/40 px-4 py-4 text-sm font-black text-slate-900 outline-none"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              placeholder="EUR"
-            />
-            <input
-              className="min-w-0 flex-1 rounded-[24px] border border-violet-100 bg-violet-50/40 px-4 py-4 text-sm font-bold text-slate-900 outline-none"
-              value={newPerson}
-              onChange={(e) => setNewPerson(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") addPerson();
-              }}
-              placeholder="Dodaj osobę"
-            />
-            <button
-              onClick={addPerson}
-              className="rounded-[24px] bg-slate-950 px-4 py-4 text-sm font-black text-white"
-            >
-              +
-            </button>
-          </div>
+          <div className="rounded-[34px] border border-violet-100/70 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
+            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-violet-500">
+              Waluta
+            </div>
 
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-            {people.map((p) => (
-              <div
-                key={p}
-                className="relative shrink-0 rounded-full border border-violet-100 bg-white pl-4 pr-10 py-2 text-sm font-bold text-slate-700 shadow-sm"
-              >
-                {p}
-
-                <button
-                  type="button"
-                  onClick={() => removePerson(p)}
-                  className="absolute right-1 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-rose-50 text-[11px] font-black text-rose-500 transition hover:bg-rose-100 hover:text-rose-700"
-                  aria-label={`Usuń ${p}`}
-                >
-                  ×
-                </button>
+            <div className="mt-4 flex items-center gap-3">
+              <input
+                className="w-28 rounded-[24px] border border-violet-100 bg-violet-50/40 px-4 py-4 text-center text-lg font-black text-slate-950 outline-none"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                placeholder="EUR"
+              />
+              <div className="text-sm font-medium leading-6 text-slate-500">
+                Używana do wszystkich wydatków w tym tripie.
               </div>
-            ))}
+            </div>
           </div>
         </section>
 
