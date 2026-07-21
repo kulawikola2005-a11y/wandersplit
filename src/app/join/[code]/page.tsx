@@ -1,45 +1,67 @@
 "use client";
 
-import { useMemo } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
-export default function JoinPage() {
-  const params = useParams<{ code: string }>();
-  const sp = useSearchParams();
+type AcceptInviteResult = {
+  ok: boolean;
+  out_trip_id: string | null;
+  error_text: string | null;
+};
 
-  const code = useMemo(() => (params?.code ? String(params.code) : ""), [params]);
-  const tripId = useMemo(() => sp.get("trip") || "", [sp]);
+export default function JoinByCodePage() {
+  const params = useParams();
+  const router = useRouter();
+  const [status, setStatus] = useState("Dołączanie do tripa...");
 
-  const btn = "rounded-xl border px-4 py-2 text-sm";
-  const btnBlack = "rounded-xl bg-black px-4 py-2 text-sm text-white";
+  useEffect(() => {
+    async function join() {
+      const token = String(params?.code || "");
 
-  function joinLocal() {
-    if (!tripId || !code) return;
+      if (!token) {
+        setStatus("Brak tokenu.");
+        return;
+      }
 
-    // zapisz “członkostwo” lokalnie (na potrzeby demo)
-    const key = `wandersplit:joined:${tripId}`;
-    localStorage.setItem(key, JSON.stringify({ joined: true, code, joinedAt: new Date().toISOString() }));
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) {
+        setStatus("Musisz być zalogowana, żeby dołączyć do tripa.");
+        return;
+      }
 
-    window.location.href = `/trips/${tripId}`;
-  }
+      const user = authData.user;
+
+      const { data, error } = await supabase.rpc("accept_trip_invite", {
+        _token: token,
+        _user_id: user.id,
+      });
+
+      if (error) {
+        console.error(error);
+        setStatus(error.message || "Nie udało się dołączyć.");
+        return;
+      }
+
+      const row = Array.isArray(data) ? (data[0] as AcceptInviteResult | undefined) : undefined;
+
+      if (!row?.ok || !row.out_trip_id) {
+        setStatus(row?.error_text || "Nie udało się dołączyć.");
+        return;
+      }
+
+      setStatus("Dołączono. Przekierowuję...");
+      router.push(`/trips/${row.out_trip_id}`);
+    }
+
+    join();
+  }, [params, router]);
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <h1 className="text-2xl font-semibold">Join</h1>
-      <p className="mt-1 text-sm text-gray-600">Kod: <span className="font-mono">{code}</span></p>
-      <p className="mt-1 text-sm text-gray-600">Trip: <span className="font-mono">{tripId || "-"}</span></p>
-
-      <div className="mt-6 rounded-2xl border p-4">
-        <p className="text-sm text-gray-700">
-          To jest demo-join lokalny. Kliknij, żeby “dołączyć” i przejść do tripa.
-        </p>
-
-        <div className="mt-4 flex gap-2">
-          <button className={btnBlack} onClick={joinLocal} disabled={!tripId || !code}>
-            Dołącz do tripa
-          </button>
-          <a className={btn} href="/trips">← Trips</a>
-        </div>
+    <div className="mx-auto max-w-xl px-4 py-10">
+      <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200">
+        <div className="text-lg font-bold">WanderSplit</div>
+        <div className="mt-3 text-sm text-slate-600">{status}</div>
       </div>
     </div>
   );

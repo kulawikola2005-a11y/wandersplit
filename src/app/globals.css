@@ -1,26 +1,191 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ===== RESET ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  height: 100%;
+  width: 100%;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  min-height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background: #f5f7fb;
+  color: #111827;
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+/* ===== ROOT ===== */
+body > div:first-child {
+  min-height: 100vh;
+}
+
+/* ===== APP SHELL ===== */
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  padding: 0;
+}
+
+.app-screen {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top, rgba(224, 231, 255, 0.9) 0%, rgba(255, 255, 255, 0.96) 30%, rgba(248, 250, 252, 1) 100%);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.04),
+    0 24px 80px rgba(15, 23, 42, 0.10);
+}
+
+/* ===== MEDIA ===== */
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ===== FORMS ===== */
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+/* ===== TYPOGRAPHY ===== */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+}
+
+.ws-title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.ws-subtle {
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* ===== COMMON MOBILE SAFETY ===== */
+.ws-page,
+.page-wrap,
+.trip-page {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* ===== CARD SAFETY ===== */
+.ws-card,
+.pro-card,
+.card {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ===== LEAFLET ===== */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ===== IOS / ANDROID SAFETY ===== */
+@supports (-webkit-touch-callout: none) {
+  .app-screen {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* ===== WANDERSPLIT PREMIUM ===== */
+.ws-card {
+  @apply rounded-[28px] border border-white/40 bg-white/70 backdrop-blur-xl;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+
+.ws-card-strong {
+  @apply rounded-[28px] bg-white/80 backdrop-blur-2xl;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+}
+
+.ws-glass {
+  @apply border border-white/40 bg-white/30 backdrop-blur-xl;
+}
+
+.ws-button {
+  @apply rounded-2xl px-4 py-2 font-semibold;
+  background: linear-gradient(135deg, #111827, #374151);
+  color: white;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+}
+
+.ws-chip {
+  @apply rounded-full px-3 py-1.5 text-xs font-medium;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+/* ===== MICROINTERACTIONS ===== */
+.ws-lift {
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    opacity 220ms ease;
+}
+
+.ws-lift:hover {
+  transform: translateY(-4px);
+}
+
+.ws-press:active {
+  transform: scale(0.97);
+}
+
+.ws-smooth {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease,
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    opacity 220ms ease;
 }

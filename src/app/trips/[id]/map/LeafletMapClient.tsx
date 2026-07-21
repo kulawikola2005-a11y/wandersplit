@@ -1,199 +1,590 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
-import L from "leaflet";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+  useMap,
+} from "react-leaflet";
+import L, { LatLngExpression, Map as LeafletMap } from "leaflet";
+import { LocateFixed } from "lucide-react";
+import "leaflet/dist/leaflet.css";
+import { readStopsFromDB, deleteStopFromDB, type TripStop } from "@/lib/trips/db";
 
-type Stop = { id: string; name: string; countryCode?: string };
-
-type StopGeo = {
+type Stop = {
   id: string;
   name: string;
   countryCode?: string;
-  label: string;
-  lat: number;
-  lon: number;
+  sort_order: number;
+  lat?: number;
+  lng?: number;
 };
 
-const DefaultIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+type Props = {
+  tripId: string;
+};
 
-async function geocode(stop: Stop) {
-  const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
-  url.searchParams.set("name", stop.name);
-  url.searchParams.set("count", "1");
-  url.searchParams.set("language", "en");
-  url.searchParams.set("format", "json");
-  if (stop.countryCode) url.searchParams.set("countryCode", stop.countryCode);
+type RouteMode = "smart" | "direct" | "mixed";
 
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Geocoding HTTP ${res.status}`);
+function cx(...v: Array<string | false | null | undefined>) {
+  return v.filter(Boolean).join(" ");
+}
 
-  const json = await res.json();
-  const r = json?.results?.[0];
-  if (!r) throw new Error(`Nie znaleziono: ${stop.name}. Dodaj countryCode (np. IT).`);
-
-  const labelParts = [r.name, r.admin1, r.country].filter(Boolean);
+function mapDbStopToStop(s: TripStop): Stop {
   return {
-    label: labelParts.join(", "),
-    lat: Number(r.latitude),
-    lon: Number(r.longitude),
+    id: s.id,
+    name: s.name,
+    countryCode: s.country_code ?? undefined,
+    sort_order: s.sort_order,
+    lat: typeof s.lat === "number" ? s.lat : undefined,
+    lng: typeof s.lng === "number" ? s.lng : undefined,
   };
 }
 
-async function routeOSRM(points: { lat: number; lon: number }[]) {
-  const coords = points.map((p) => `${p.lon},${p.lat}`).join(";");
-  const url = new URL(`https://router.project-osrm.org/route/v1/driving/${coords}`);
-  url.searchParams.set("overview", "full");
-  url.searchParams.set("geometries", "geojson");
-
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`OSRM HTTP ${res.status}`);
-
-  const json = await res.json();
-  const route = json?.routes?.[0]?.geometry;
-  if (!route?.coordinates) throw new Error("Brak geometrii trasy.");
-
-  return route.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+function fixLeafletIcons() {
+  // @ts-ignore
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  });
 }
 
-export default function LeafletMapClient({ tripId }: { tripId: string }) {
-  const keyStops = useMemo(() => `wandersplit:stops:${tripId}`, [tripId]);
-
-  const [stops, setStops] = useState<Stop[]>([]);
-  const [geo, setGeo] = useState<StopGeo[]>([]);
-  const [line, setLine] = useState<[number, number][]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [loadingGeo, setLoadingGeo] = useState(false);
-  const [loadingRoute, setLoadingRoute] = useState(false);
+function FitBoundsButton({
+  points,
+  trigger,
+}: {
+  points: LatLngExpression[];
+  trigger: number;
+}) {
+  const map = useMap();
 
   useEffect(() => {
-    if (!tripId) return;
-    const raw = localStorage.getItem(keyStops);
-    const arr: Stop[] = raw ? JSON.parse(raw) : [];
-    setStops(Array.isArray(arr) ? arr : []);
-  }, [tripId, keyStops]);
+    if (!points.length) return;
+    const bounds = L.latLngBounds(points as L.LatLngBoundsLiteral);
+    map.fitBounds(bounds.pad(0.18), { animate: true });
+  }, [map, trigger, points]);
 
-  const center = useMemo<[number, number]>(() => {
-    if (geo.length) return [geo[0].lat, geo[0].lon];
-    return [41.9028, 12.4964]; // Rome fallback
-  }, [geo]);
+  return null;
+}
 
-  async function geocodeAll() {
-    if (!stops.length) {
-      setMsg("Najpierw dodaj stops w: Trip → Stops.");
-      return;
-    }
-    setMsg(null);
-    setLoadingGeo(true);
-    setLine([]);
+function FocusStop({ stop }: { stop: Stop | null }) {
+  const map = useMap();
 
+  useEffect(() => {
+    if (!stop || typeof stop.lat !== "number" || typeof stop.lng !== "number") return;
+    map.flyTo([stop.lat, stop.lng], Math.max(map.getZoom(), 11), {
+      animate: true,
+      duration: 0.8,
+    });
+  }, [map, stop]);
+
+  return null;
+}
+
+function makeNumberedDivIcon(n: number, active = false) {
+  const bg = active ? "#4f46e5" : "#111827";
+  const ring = active ? "#c7d2fe" : "#e5e7eb";
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="
+        width:28px;height:28px;border-radius:999px;
+        background:${bg}; color:white;
+        display:flex; align-items:center; justify-content:center;
+        font-size:12px; font-weight:700;
+        border:2px solid ${ring};
+        box-shadow:0 6px 16px rgba(0,0,0,.20);
+      ">${n}</div>
+    `,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+}
+
+function haversineKm(a: [number, number], b: [number, number]) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+
+  const lat1 = a[0];
+  const lng1 = a[1];
+  const lat2 = b[0];
+  const lng2 = b[1];
+
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
+  const q =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1 - q));
+  return R * c;
+}
+
+export default function LeafletMapClient({ tripId }: Props) {
+  const [stops, setStops] = useState<Stop[]>([]);
+  const [query, setQuery] = useState("");
+  const [sheetOpen, setSheetOpen] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [fitTick, setFitTick] = useState(0);
+  const [focusStop, setFocusStop] = useState<Stop | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeReady, setRouteReady] = useState(false);
+  const [routeLine, setRouteLine] = useState<[number, number][]>([]);
+  const [drawCount, setDrawCount] = useState(0);
+  const [routeMode, setRouteMode] = useState<RouteMode>("direct");
+
+  const mapRef = useRef<LeafletMap | null>(null);
+
+  async function refreshStops() {
+    setLoading(true);
+    const arr = await readStopsFromDB(tripId);
+    const normalized = (Array.isArray(arr) ? arr : [])
+      .map(mapDbStopToStop)
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    setStops(normalized);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    fixLeafletIcons();
+  }, []);
+
+  useEffect(() => {
+    refreshStops();
+  }, [tripId]);
+
+  async function removeStop(id: string) {
     try {
-      const out: StopGeo[] = [];
-      for (const s of stops) {
-        const loc = await geocode(s);
-        out.push({
-          id: s.id,
-          name: s.name,
-          countryCode: s.countryCode,
-          label: loc.label,
-          lat: loc.lat,
-          lon: loc.lon,
+      await deleteStopFromDB(id);
+      setStops((prev) => prev.filter((s) => s.id !== id));
+      if (selectedId === id) setSelectedId(null);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  const geocodedStops = useMemo(
+    () => stops.filter((s) => typeof s.lat === "number" && typeof s.lng === "number"),
+    [stops]
+  );
+
+  const markerPoints = useMemo<LatLngExpression[]>(
+    () => geocodedStops.map((s) => [s.lat as number, s.lng as number]),
+    [geocodedStops]
+  );
+
+  const filteredStops = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return stops;
+    return stops.filter((s) =>
+      `${s.name} ${s.countryCode ?? ""}`.toLowerCase().includes(q)
+    );
+  }, [stops, query]);
+
+  const center: LatLngExpression = useMemo(() => {
+    if (geocodedStops.length) return [geocodedStops[0].lat as number, geocodedStops[0].lng as number];
+    return [50.8503, 4.3517];
+  }, [geocodedStops]);
+
+  function focusOnStop(s: Stop) {
+    setSelectedId(s.id);
+    setFocusStop(s);
+  }
+
+  function fitRoute() {
+    setFitTick((x) => x + 1);
+  }
+
+  function goToMyLocation() {
+    if (!navigator.geolocation || !mapRef.current) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        mapRef.current?.flyTo([latitude, longitude], 13, {
+          animate: true,
+          duration: 0.8,
         });
-      }
-      setGeo(out);
-      setMsg("OK ✅ Zgeokodowano stops.");
-    } catch (e: any) {
-      setMsg(e?.message || "Błąd geocoding.");
-    } finally {
-      setLoadingGeo(false);
-    }
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 6000 }
+    );
   }
 
-  async function buildRoute() {
-    if (geo.length < 2) {
-      setMsg("Dodaj min. 2 stopy i kliknij najpierw: Geocode stops.");
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRoute() {
+      if (geocodedStops.length < 2) {
+        setRouteLine([]);
+        setRouteReady(false);
+        setDrawCount(0);
+        setRouteMode("direct");
+        return;
+      }
+
+      try {
+        setRouteLoading(true);
+        setRouteReady(false);
+        setDrawCount(0);
+
+        const merged: [number, number][] = [];
+        let usedSmart = false;
+        let usedDirect = false;
+
+        for (let i = 0; i < geocodedStops.length - 1; i += 1) {
+          const start = geocodedStops[i];
+          const end = geocodedStops[i + 1];
+
+          const startPos = [start.lat as number, start.lng as number] as [number, number];
+          const endPos = [end.lat as number, end.lng as number] as [number, number];
+          const distanceKm = haversineKm(startPos, endPos);
+
+          if (distanceKm > 700) {
+            const directSegment: [number, number][] = [startPos, endPos];
+
+            if (merged.length === 0) {
+              merged.push(...directSegment);
+            } else {
+              merged.push(...directSegment.slice(1));
+            }
+
+            usedDirect = true;
+            continue;
+          }
+
+          try {
+            const res = await fetch("/api/route", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                profile: "driving-car",
+                coordinates: [
+                  [start.lng as number, start.lat as number],
+                  [end.lng as number, end.lat as number],
+                ],
+              }),
+            });
+
+            const data = await res.json().catch(() => null);
+
+            if (!res.ok || !data) {
+              throw new Error("Nie udało się pobrać segmentu");
+            }
+
+            const coords = data?.features?.[0]?.geometry?.coordinates;
+            if (!Array.isArray(coords)) {
+              throw new Error("Brak geometrii segmentu");
+            }
+
+            const latLngs = coords
+              .filter(
+                (coord: unknown) =>
+                  Array.isArray(coord) &&
+                  coord.length === 2 &&
+                  Number.isFinite(coord[0]) &&
+                  Number.isFinite(coord[1])
+              )
+              .map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
+
+            if (!latLngs.length) {
+              throw new Error("Pusty segment");
+            }
+
+            if (merged.length === 0) {
+              merged.push(...latLngs);
+            } else {
+              merged.push(...latLngs.slice(1));
+            }
+
+            usedSmart = true;
+          } catch (segmentError) {
+            console.warn("Full map segment fallback:", segmentError);
+
+            const directSegment: [number, number][] = [startPos, endPos];
+
+            if (merged.length === 0) {
+              merged.push(...directSegment);
+            } else {
+              merged.push(...directSegment.slice(1));
+            }
+
+            usedDirect = true;
+          }
+        }
+
+        if (!cancelled) {
+          setRouteLine(merged);
+
+          if (usedSmart && usedDirect) {
+            setRouteMode("mixed");
+          } else if (usedSmart) {
+            setRouteMode("smart");
+          } else {
+            setRouteMode("direct");
+          }
+
+          setRouteReady(true);
+        }
+      } catch (error) {
+        console.warn("Full map route fallback:", error);
+        if (!cancelled) {
+          setRouteLine(
+            geocodedStops.map((s) => [s.lat as number, s.lng as number] as [number, number])
+          );
+          setRouteMode("direct");
+          setRouteReady(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setRouteLoading(false);
+        }
+      }
+    }
+
+    loadRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [geocodedStops]);
+
+  useEffect(() => {
+    if (!routeReady) return;
+    if (routeLine.length < 2) {
+      setDrawCount(routeLine.length);
       return;
     }
-    setMsg(null);
-    setLoadingRoute(true);
 
-    try {
-      const points = geo.map((g) => ({ lat: g.lat, lon: g.lon }));
-      const poly = await routeOSRM(points);
-      setLine(poly);
-      setMsg("OK ✅ Trasa wyznaczona.");
-    } catch (e: any) {
-      const poly = geo.map((g) => [g.lat, g.lon] as [number, number]);
-      setLine(poly);
-      setMsg((e?.message ? `${e.message} ` : "") + "Pokazuję prostą linię (fallback).");
-    } finally {
-      setLoadingRoute(false);
-    }
-  }
+    setDrawCount(1);
 
-  const btn = "rounded-xl border px-4 py-2 text-sm";
-  const btnBlack = "rounded-xl bg-black px-4 py-2 text-sm text-white";
+    let timer = 0;
+    let current = 1;
+    const total = routeLine.length;
+    const step = total > 180 ? 6 : total > 90 ? 4 : total > 40 ? 2 : 1;
+
+    const tick = () => {
+      current = Math.min(current + step, total);
+      setDrawCount(current);
+
+      if (current < total) {
+        timer = window.setTimeout(tick, 22) as unknown as number;
+      }
+    };
+
+    timer = window.setTimeout(tick, 80) as unknown as number;
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [routeLine, routeReady]);
+
+  const fullVisibleLine =
+    routeLine.length >= 2
+      ? routeLine
+      : geocodedStops.map((s) => [s.lat as number, s.lng as number] as [number, number]);
+
+  const animatedLine =
+    fullVisibleLine.length >= 2
+      ? fullVisibleLine.slice(0, Math.max(drawCount, 2))
+      : fullVisibleLine;
+
+  const routeTopLabel = routeLoading
+    ? "Loading route…"
+    : routeMode === "mixed"
+    ? "Mixed route"
+    : routeMode === "smart"
+    ? "Smart route"
+    : "Direct line";
+
+  const routeBottomBadge =
+    routeMode === "mixed"
+      ? "Smart + direct"
+      : routeMode === "smart"
+      ? "Route calculated"
+      : "Fallback line";
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Mapa</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Stops → markery → trasa (OSRM). Trip ID: <span className="font-mono">{tripId || "-"}</span>
-          </p>
-        </div>
+    <div className="relative min-h-dvh bg-slate-100 pb-0">
+      <div className="absolute inset-0">
+        <MapContainer
+          center={center}
+          zoom={6}
+          scrollWheelZoom
+          className="h-full w-full"
+          ref={(m) => {
+            if (m) {
+              mapRef.current = m;
+              if (!mapReady) setMapReady(true);
+            }
+          }}
+        >
+          <TileLayer
+            attribution='&copy; OpenStreetMap contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-        <div className="flex flex-wrap gap-2">
-          <a className={btn} href={`/trips/${tripId}`}>← Trip</a>
-          <a className={btn} href={`/trips/${tripId}/stops`}>Stops</a>
-          <a className={btn} href={`/trips/${tripId}/weather`}>Pogoda</a>
-        </div>
-      </div>
+          {animatedLine.length >= 2 ? (
+            <Polyline positions={animatedLine} pathOptions={{ weight: 4, opacity: 0.82 }} />
+          ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button onClick={geocodeAll} className={btnBlack} disabled={loadingGeo}>
-          {loadingGeo ? "Geocoding..." : "Geocode stops"}
-        </button>
-        <button onClick={buildRoute} className={btn} disabled={loadingRoute || geo.length < 2}>
-          {loadingRoute ? "Wyznaczam..." : "Directions (route)"}
-        </button>
-        <button onClick={() => setLine([])} className={btn}>
-          Wyczyść trasę
-        </button>
-      </div>
+          {stops.map((s, i) => {
+            const hasCoords = typeof s.lat === "number" && typeof s.lng === "number";
+            if (!hasCoords) return null;
 
-      {msg ? <p className="mt-3 text-sm text-gray-700">{msg}</p> : null}
-
-      <div className="mt-4 overflow-hidden rounded-2xl border">
-        <div style={{ height: 520 }}>
-          <MapContainer center={center} zoom={6} scrollWheelZoom className="h-full w-full">
-            <TileLayer
-              attribution='&copy; OpenStreetMap contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-
-            {geo.map((g) => (
-              <Marker key={g.id} position={[g.lat, g.lon]} icon={DefaultIcon}>
+            return (
+              <Marker
+                key={s.id}
+                position={[s.lat as number, s.lng as number]}
+                icon={makeNumberedDivIcon(i + 1, selectedId === s.id)}
+                eventHandlers={{
+                  click: () => focusOnStop(s),
+                }}
+              >
                 <Popup>
-                  <div className="text-sm">
-                    <div className="font-medium">{g.name}</div>
-                    <div className="text-xs text-gray-600">{g.label}</div>
-                  </div>
+                  <div className="font-semibold">{s.name}</div>
                 </Popup>
               </Marker>
-            ))}
+            );
+          })}
 
-            {line.length >= 2 ? <Polyline positions={line} /> : null}
-          </MapContainer>
+          {mapReady && fullVisibleLine.length ? <FitBoundsButton points={fullVisibleLine} trigger={fitTick} /> : null}
+          {mapReady ? <FocusStop stop={focusStop} /> : null}
+        </MapContainer>
+
+        {routeLoading ? (
+          <div className="pointer-events-none absolute inset-x-4 top-24 z-[450]">
+            <div className="inline-flex items-center gap-3 rounded-2xl border border-white/70 bg-white/90 px-4 py-2 text-sm font-medium text-neutral-700 shadow-lg backdrop-blur">
+              <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-neutral-900" />
+              <span>Loading route…</span>
+            </div>
+          </div>
+        ) : null}
+
+        {routeReady && fullVisibleLine.length >= 2 ? (
+          <div className="pointer-events-none absolute bottom-28 right-4 z-[450] rounded-2xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-medium text-neutral-600 shadow-lg backdrop-blur">
+            {routeBottomBadge}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] p-4">
+        <div className="pointer-events-auto mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-3xl border border-white/70 bg-white/90 p-3 shadow-lg backdrop-blur">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              WanderSplit
+            </div>
+            <div className="text-lg font-bold text-slate-900">Mapa tripa</div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="hidden rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600 shadow-sm sm:block">
+              {routeTopLabel}
+            </div>
+
+            <button
+              onClick={fitRoute}
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
+            >
+              Dopasuj trasę
+            </button>
+
+            <button
+              onClick={goToMyLocation}
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
+            >
+              <LocateFixed className="h-4 w-4" />
+            </button>
+
+            <Link
+              href={`/trips/${tripId}`}
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
+            >
+              Powrót
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] p-4">
+        <div
+          className={cx(
+            "pointer-events-auto mx-auto max-w-5xl overflow-hidden rounded-[30px] border border-white/80 bg-white/92 shadow-[0_-18px_50px_rgba(15,23,42,.18)] backdrop-blur-xl transition-all duration-300",
+            sheetOpen ? "max-h-[48vh]" : "max-h-16"
+          )}
+        >
+          <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
+            <button
+              onClick={() => setSheetOpen((v) => !v)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-slate-50"
+            >
+              {sheetOpen ? "Zwiń" : "Rozwiń"}
+            </button>
+
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Szukaj przystanku"
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+            />
+          </div>
+
+          <div className="max-h-[38vh] overflow-auto p-3">
+            {loading ? (
+              <div className="p-3 text-sm text-slate-500">Ładowanie przystanków…</div>
+            ) : filteredStops.length === 0 ? (
+              <div className="p-3 text-sm text-slate-500">Brak przystanków.</div>
+            ) : (
+              <div className="space-y-2">
+                {filteredStops.map((s, i) => {
+                  const hasCoords = typeof s.lat === "number" && typeof s.lng === "number";
+                  return (
+                    <div
+                      key={s.id}
+                      className={cx(
+                        "flex items-center justify-between gap-3 rounded-2xl border p-3",
+                        selectedId === s.id
+                          ? "border-indigo-300 bg-indigo-50 shadow-[0_8px_24px_rgba(79,70,229,0.12)]"
+                          : "border-slate-200 bg-white"
+                      )}
+                    >
+                      <button
+                        onClick={() => focusOnStop(s)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="font-semibold text-slate-900">{i + 1}. {s.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {hasCoords ? "Ma współrzędne" : "Brak współrzędnych — nie pokaże się na mapie"}
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => removeStop(s.id)}
+                        className="rounded-xl border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
+                      >
+                        Usuń
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

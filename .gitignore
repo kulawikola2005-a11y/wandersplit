@@ -45,3 +45,37 @@ next-env.d.ts
 .supabase-local.env
 
 .next
+
+# local backups
+*.bak
+*.bak-*
+
+# local backups
+*.bak
+*.bak-*
+
+# env
+.env.local
+
+# local secrets
+.env
+.env.local
+.env.*.local
+
+# android signing secrets
+android/app/keys/
+android/keystore.properties
+
+# local backups
+cleanup-backups/
+*.backup*
+*.bak*
+*-backup*
+*.before-*
+*.pro-backup
+*.uxplusplus-backup
+*.ai-button-backup
+*.home-uxplusplus-backup
+*.day-ui-backup
+*.params-fix-backup
+*.share-premium-backup
